@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import os
-import re
 import base64
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics.pairwise import cosine_similarity
@@ -61,7 +60,6 @@ if os.path.exists(img_file):
 else:
     st.title("🥗 Sistem Rekomendasi Paket Menu Harian Sehat")
 
-# Jarak bawah (margin-bottom) sudah dikecilkan menjadi 5px agar tidak terlalu renggang
 st.markdown("""
     <div style="text-align: center; font-style: italic; font-size: 16px; color: #FFFFFF; margin-top: -10px; margin-bottom: 5px;">
         "Wujudkan gaya hidup sehat dengan panduan pola makan harian bergizi yang disesuaikan khusus untuk kebutuhan tubuhmu!"
@@ -71,34 +69,7 @@ st.markdown("""
 st.markdown("---")
 
 # ==========================================
-# 2. FUNGSI PEMBANTU
-# ==========================================
-def format_menu_menyamping(sarapan, siang, malam):
-    data_tabel = []
-    waktu_makan = [("🌅 Sarapan", sarapan), ("☀️ Makan Siang", siang), ("🌙 Makan Malam", malam)]
-    
-    for waktu, menu_str in waktu_makan:
-        items = menu_str.split(',')
-        nama_list = []
-        berat_list = []
-        
-        for item in items:
-            gram_match = re.search(r'\((.*?)\)', item)
-            berat = gram_match.group(1) if gram_match else "-"
-            nama_menu = re.sub(r'\(.*?\)', '', item).strip()
-            
-            nama_list.append(nama_menu)
-            berat_list.append(berat)
-            
-        data_tabel.append({
-            "Waktu Makan": waktu,
-            "Daftar Menu": ", ".join(nama_list),
-            "Total Porsi/Gram": ", ".join(berat_list)
-        })
-    return pd.DataFrame(data_tabel)
-
-# ==========================================
-# 3. FORM INPUT DATA PENGGUNA (SIDEBAR)
+# 2. FORM INPUT DATA PENGGUNA (SIDEBAR)
 # ==========================================
 with st.sidebar:
     st.header("📝 Form Data Diri")
@@ -131,16 +102,17 @@ with st.sidebar:
         submitted = st.form_submit_button("Cari Rekomendasi 🚀")
 
 # ==========================================
-# 4. PROSES PERHITUNGAN & VALIDASI
+# 3. PROSES PERHITUNGAN & VALIDASI
 # ==========================================
 if submitted:
     if not nama or bb is None or tb is None or usia is None:
         st.warning("⚠️ Mohon lengkapi Nama, Usia, Berat Badan, dan Tinggi Badan Anda di form samping!")
     elif usia < 18 or usia > 40:
-        st.error(f"🛑 MAAF! Sesuai dengan batasan masalah sistem, rekomendasi hanya dapat memproses rentang usia dewasa (18 - 40 Tahun). Usia Anda: {usia} Tahun.")
+        st.error(f"🛑 MAAF! Rekomendasi hanya dapat memproses rentang usia dewasa (18 - 40 Tahun). Usia Anda: {usia} Tahun.")
     elif alergi != "Tidak Ada":
         st.error("🛑 MAAF! Saat ini sistem tidak dapat memproses rekomendasi bagi pengguna yang memiliki riwayat alergi makanan.")
     else:
+        # Perhitungan BMR
         if gender == "Laki-laki":
             bmr = (10 * bb) + (6.25 * tb) - (5 * usia) + 5
         else:
@@ -155,6 +127,7 @@ if submitted:
         }
         tdee = bmr * pal_dict[aktivitas]
         
+        # Target Kalori
         target_kalori = tdee
         if "Defisit" in goal: target_kalori -= 500
         elif "Surplus" in goal: target_kalori += 500
@@ -166,7 +139,7 @@ if submitted:
         st.subheader(f"📊 Hasil Analisis Kebutuhan Energi: {nama.upper()}")
         col_m1, col_m2, col_m3, col_m4 = st.columns(4)
         with col_m1:
-            st.metric("Target Kalori", f"{target_kalori:.0f} (Kkal)")
+            st.metric("Target Kalori", f"{target_kalori:.1f} (Kkal)")
         with col_m2:
             st.metric("Protein", f"{t_protein:.1f} (g)")
         with col_m3:
@@ -200,8 +173,15 @@ if submitted:
             st.success(f"🏆 Rekomendasi Terbaik: Paket {top_1['Id Paket']} (Kategori: {top_1['Paket']}) (Skor Kemiripan: {top_1['Score']:.4f})")
             
             st.write("### 🍱 Rincian Menu Harian")
-            df_menu_rapi = format_menu_menyamping(top_1['Sarapan'], top_1['Makan Siang'], top_1['Makan Malam'])
-            st.table(df_menu_rapi.assign(hack='').set_index('hack'))
+            
+            # --- TAMPILAN BARU UNTUK DETAIL MAKANAN (SAMA SEPERTI COLAB) ---
+            st.markdown(f"""
+            <div style="background-color: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+                <p style="font-size: 16px; line-height: 1.8; color: #E0E0E0; margin: 0;">
+                    {top_1['Detail Makanan']}
+                </p>
+            </div>
+            """, unsafe_allow_html=True)
             
             st.info(f"💡 **Informasi Gizi Paket:** Menu ini mengandung total **{top_1['Total Kalori']} (Kkal)**. "
                     f"Selisih dengan target Anda adalah **{abs(top_1['Total Kalori'] - target_kalori):.1f} (Kkal)**.")
