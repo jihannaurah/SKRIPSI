@@ -35,7 +35,7 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 st.title("🥗 Sistem Rekomendasi Paket Menu Harian Sehat")
-st.write("Dapatkan rekomendasi menu harian yang dipersonalisasi berdasarkan algoritma AI Cosine Similarity.")
+st.write("Mulai Hidup Sehat Dengan Menentukan Makanan Harian yang Sehat.")
 st.markdown("---")
 
 # ==========================================
