@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import os
 import re
-import base64 # Untuk memproses gambar lokal
+import base64
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics.pairwise import cosine_similarity
 
@@ -12,13 +12,10 @@ from sklearn.metrics.pairwise import cosine_similarity
 # ==========================================
 st.set_page_config(page_title="Sistem Rekomendasi Diet", page_icon="🥗", layout="wide")
 
-# CSS UNTUK KOTAK METRIK DAN MENGHILANGKAN INSTRUKSI FORM
 st.markdown("""
     <style>
-    /* 1. Menghilangkan instruksi bawaan "Press Enter" */
     div[data-testid="InputInstructions"] { display: none !important; }
     
-    /* 2. Style Kotak Metrik (Metric Card) Elegan */
     [data-testid="stMetric"] {
         background-color: rgba(255, 255, 255, 0.05); 
         border: 1px solid rgba(255, 255, 255, 0.1);
@@ -31,32 +28,29 @@ st.markdown("""
         transform: translateY(-5px); 
         background-color: rgba(255, 255, 255, 0.08);
     }
-    /* Mengatur warna label metrik (biru cerah) */
     [data-testid="stMetricLabel"] p {
         font-size: 16px !important;
         font-weight: 600 !important;
         color: #00d4ff !important; 
     }
-    
-    /* 3. Menghilangkan Border Default Tabel Statis agar Rapi */
     .stTable {
         border: none !important;
     }
     </style>
     """, unsafe_allow_html=True)
 
-# --- FUNGSI UNTUK MEMANGGIL GAMBAR LOKAL KE HTML ---
+# ==========================================
+# HEADER: GAMBAR BULAT & TAGLINE TENGAH
+# ==========================================
 def get_base64_of_bin_file(bin_file):
     with open(bin_file, 'rb') as f:
         data = f.read()
     return base64.b64encode(data).decode()
 
-# Pastikan file Macronutrients.png sudah ada di GitHub
 img_file = 'Macronutrients.png' 
 
 if os.path.exists(img_file):
     img_base64 = get_base64_of_bin_file(img_file)
-    # Menampilkan Judul & Gambar Bulat
     st.markdown(f"""
         <div style="display: flex; align-items: center; justify-content: center; gap: 20px; border-bottom: 2px solid rgba(255,255,255,0.1); padding-bottom: 20px; margin-bottom: 20px;">
             <img src="data:image/png;base64,{img_base64}" 
@@ -67,7 +61,6 @@ if os.path.exists(img_file):
 else:
     st.title("🥗 Sistem Rekomendasi Paket Menu Harian Sehat")
 
-# --- STYLE TAGLINE (MIRING, KUTIP, BESAR, DAN DI TENGAH) ---
 st.markdown("""
     <div style="text-align: center; font-style: italic; font-size: 20px; color: rgba(255,255,255,0.8); margin-top: -10px; margin-bottom: 30px;">
         “ Wujudkan gaya hidup sehat dengan panduan pola makan harian bergizi yang disesuaikan khusus untuk kebutuhan tubuhmu! ”
@@ -77,7 +70,7 @@ st.markdown("""
 st.markdown("---")
 
 # ==========================================
-# 2. FUNGSI PEMBANTU (PARSING TABEL MENYAMPING)
+# 2. FUNGSI PEMBANTU
 # ==========================================
 def format_menu_menyamping(sarapan, siang, malam):
     data_tabel = []
@@ -147,7 +140,6 @@ if submitted:
     elif alergi != "Tidak Ada":
         st.error("🛑 MAAF! Saat ini sistem tidak dapat memproses rekomendasi bagi pengguna yang memiliki riwayat alergi makanan.")
     else:
-        # A. Perhitungan BMR & TDEE
         if gender == "Laki-laki":
             bmr = (10 * bb) + (6.25 * tb) - (5 * usia) + 5
         else:
@@ -171,5 +163,4 @@ if submitted:
         t_lemak = (target_kalori * 0.30) / 9
 
         st.subheader(f"📊 Hasil Analisis Kebutuhan Energi: {nama.upper()}")
-        col_m1, col_m2, col_m3, col_m4 = st.columns(4)
-        with col_m1: st.metric("Target Kalori", f"{target_kalori:.
+        col_m1, col_m2, col_m3, col_m4
