@@ -7,9 +7,19 @@ from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics.pairwise import cosine_similarity
 
 # ==========================================
-# 1. KONFIGURASI TAMPILAN HALAMAN
+# 1. KONFIGURASI TAMPILAN HALAMAN & CSS
 # ==========================================
 st.set_page_config(page_title="Sistem Rekomendasi Diet", page_icon="🥗", layout="wide")
+
+# JURUS RAHASIA CSS UNTUK MENGHILANGKAN TULISAN "Press Enter..."
+st.markdown("""
+    <style>
+    /* Menyembunyikan teks instruksi bawaan Streamlit di dalam input form */
+    div[data-testid="InputInstructions"] {
+        display: none !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
 st.title("🥗 Sistem Rekomendasi Paket Menu Diet")
 st.write("Dapatkan rekomendasi menu harian yang dipersonalisasi berdasarkan algoritma AI Cosine Similarity.")
@@ -56,8 +66,8 @@ with st.sidebar:
         usia = st.number_input("Usia (Tahun)", min_value=18, max_value=40, value=22, step=1)
         
         # Mengatur value=None agar kotak kosong saat awal dibuka
-        bb = st.number_input("Berat Badan (kg)", min_value=30, value=None, placeholder="Ketik BB Anda...", step=1) 
-        tb = st.number_input("Tinggi Badan (cm)", min_value=100, value=None, placeholder="Ketik TB Anda...", step=1)
+        bb = st.number_input("Berat Badan (kg)", min_value=30, value=None, placeholder="Ketik BB...", step=1) 
+        tb = st.number_input("Tinggi Badan (cm)", min_value=100, value=None, placeholder="Ketik TB...", step=1)
         
         # OPSI DISAMAKAN 100% DENGAN KUESIONER GOOGLE FORM
         aktivitas = st.selectbox("Tingkat Aktivitas", [
