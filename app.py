@@ -11,11 +11,34 @@ from sklearn.metrics.pairwise import cosine_similarity
 # ==========================================
 st.set_page_config(page_title="Sistem Rekomendasi Diet", page_icon="🥗", layout="wide")
 
-# CSS UNTUK MENGHILANGKAN TULISAN "Press Enter..."
+# CSS UNTUK KOTAK METRIK DAN MENGHILANGKAN INSTRUKSI FORM
 st.markdown("""
     <style>
+    /* 1. Menghilangkan instruksi "Press Enter" */
     div[data-testid="InputInstructions"] {
         display: none !important;
+    }
+    
+    /* 2. Style Kotak Metrik (Metric Card) */
+    [data-testid="stMetric"] {
+        background-color: rgba(255, 255, 255, 0.05); /* Kotak semi transparan */
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 15px 20px;
+        border-radius: 15px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        transition: transform 0.3s ease;
+    }
+    
+    [data-testid="stMetric"]:hover {
+        transform: translateY(-5px); /* Efek melayang saat kursor di atas kotak */
+        background-color: rgba(255, 255, 255, 0.08);
+    }
+
+    /* Mengatur warna label metrik agar tetap kontras */
+    [data-testid="stMetricLabel"] p {
+        font-size: 16px !important;
+        font-weight: 600 !important;
+        color: #00d4ff !important; /* Warna biru cerah untuk label */
     }
     </style>
     """, unsafe_allow_html=True)
@@ -28,7 +51,6 @@ st.markdown("---")
 # 2. FUNGSI PEMBANTU (PARSING MENU MENYAMPING)
 # ==========================================
 def format_menu_menyamping(sarapan, siang, malam):
-    """Fungsi untuk memecah string menu menjadi kolom tersendiri per waktu makan"""
     data_tabel = []
     waktu_makan = [("🌅 Sarapan", sarapan), ("☀️ Makan Siang", siang), ("🌙 Makan Malam", malam)]
     
@@ -103,7 +125,6 @@ if submitted:
         }
         tdee = bmr * pal_dict[aktivitas]
         
-        # B. Target Gizi
         target_kalori = tdee
         if "Defisit" in goal: target_kalori -= 500
         elif "Surplus" in goal: target_kalori += 500
@@ -112,13 +133,19 @@ if submitted:
         t_karbo = (target_kalori * 0.50) / 4
         t_lemak = (target_kalori * 0.30) / 9
 
-        # --- DISPLAY TARGET KALORI ---
+        # --- DISPLAY TARGET KALORI DENGAN KOTAK (CARD) ---
         st.subheader(f"📊 Hasil Analisis Kebutuhan Energi: {nama.upper()}")
-        c1, c2, c3, c4 = st.columns(4)
-        c1.metric("Target Kalori", f"{target_kalori:.0f} Kkal")
-        c2.metric("Protein", f"{t_protein:.1f}g")
-        c3.metric("Karbohidrat", f"{t_karbo:.1f}g")
-        c4.metric("Lemak", f"{t_lemak:.1f}g")
+        
+        # Area Metrik
+        col_m1, col_m2, col_m3, col_m4 = st.columns(4)
+        with col_m1:
+            st.metric("Target Kalori", f"{target_kalori:.0f} Kkal")
+        with col_m2:
+            st.metric("Protein", f"{t_protein:.1f}g")
+        with col_m3:
+            st.metric("Karbohidrat", f"{t_karbo:.1f}g")
+        with col_m4:
+            st.metric("Lemak", f"{t_lemak:.1f}g")
         
         st.markdown("---")
 
@@ -138,24 +165,21 @@ if submitted:
             skor = cosine_similarity(vektor_user, vektor_db)[0]
             df_paket['Score'] = skor
             
-            # Hybrid Filtering
             if "Defisit" in goal: df_h = df_paket[df_paket['Paket'].str.startswith('D')]
             elif "Surplus" in goal: df_h = df_paket[df_paket['Paket'].str.startswith('S')]
             else: df_h = df_paket[df_paket['Paket'].str.startswith('M')]
             
             top_1 = df_h.sort_values('Score', ascending=False).iloc[0]
             
-            # --- DISPLAY HASIL REKOMENDASI (SUDAH DIPERBAIKI TEKSNYA) ---
+            # --- DISPLAY HASIL REKOMENDASI ---
             st.success(f"🏆 Rekomendasi Terbaik: Paket {top_1['Id Paket']} (Kategori: {top_1['Paket']}) (Skor Kemiripan: {top_1['Score']:.4f})")
             
             st.write("### 🍱 Rincian Menu Harian")
-            
             df_menu_rapi = format_menu_menyamping(top_1['Sarapan'], top_1['Makan Siang'], top_1['Makan Malam'])
             st.table(df_menu_rapi.assign(hack='').set_index('hack'))
             
             st.info(f"💡 **Informasi Gizi Paket:** Menu ini mengandung total **{top_1['Total Kalori']} Kkal**. "
                     f"Selisih dengan target Anda adalah **{abs(top_1['Total Kalori'] - target_kalori):.1f} Kkal**.")
-            
         else:
             st.error("File 'datasetpaketmenu.csv' tidak ditemukan.")
 else:
