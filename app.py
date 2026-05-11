@@ -61,8 +61,9 @@ if os.path.exists(img_file):
 else:
     st.title("🥗 Sistem Rekomendasi Paket Menu Harian Sehat")
 
+# Jarak bawah (margin-bottom) sudah dikecilkan menjadi 5px agar tidak terlalu renggang
 st.markdown("""
-    <div style="text-align: center; font-style: italic; font-size: 16px; color: #FFFFFF; margin-top: -10px; margin-bottom: 30px;">
+    <div style="text-align: center; font-style: italic; font-size: 16px; color: #FFFFFF; margin-top: -10px; margin-bottom: 5px;">
         "Wujudkan gaya hidup sehat dengan panduan pola makan harian bergizi yang disesuaikan khusus untuk kebutuhan tubuhmu!"
     </div>
     """, unsafe_allow_html=True)
@@ -207,6 +208,5 @@ if submitted:
         else:
             st.error("File 'datasetpaketmenu.csv' tidak ditemukan.")
 
-# PASTIKAN DUA BARIS DI BAWAH INI IKUT TERSALIN YA!
 else:
     st.info("👈 Silakan isi form data diri Anda pada sidebar di sebelah kiri lalu klik 'Cari Rekomendasi'.")
