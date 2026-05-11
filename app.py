@@ -15,7 +15,10 @@ st.set_page_config(page_title="Sistem Rekomendasi Diet", page_icon="🥗", layou
 # CSS UNTUK KOTAK METRIK DAN MENGHILANGKAN INSTRUKSI FORM
 st.markdown("""
     <style>
+    /* 1. Menghilangkan instruksi bawaan "Press Enter" */
     div[data-testid="InputInstructions"] { display: none !important; }
+    
+    /* 2. Style Kotak Metrik (Metric Card) Elegan */
     [data-testid="stMetric"] {
         background-color: rgba(255, 255, 255, 0.05); 
         border: 1px solid rgba(255, 255, 255, 0.1);
@@ -28,14 +31,16 @@ st.markdown("""
         transform: translateY(-5px); 
         background-color: rgba(255, 255, 255, 0.08);
     }
+    /* Mengatur warna label metrik (biru cerah) */
     [data-testid="stMetricLabel"] p {
         font-size: 16px !important;
         font-weight: 600 !important;
         color: #00d4ff !important; 
     }
-    /* Mengatur style agar tabel statis rapi menyamping */
+    
+    /* 3. Menghilangkan Border Default Tabel Statis agar Rapi */
     .stTable {
-        width: 100% !important;
+        border: none !important;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -46,26 +51,32 @@ def get_base64_of_bin_file(bin_file):
         data = f.read()
     return base64.b64encode(data).decode()
 
-# File gambar yang diupload user
+# Pastikan file Macronutrients.png sudah ada di GitHub
 img_file = 'Macronutrients.png' 
 
 if os.path.exists(img_file):
     # Mengubah gambar menjadi base64 agar bisa dibaca HTML
     img_base64 = get_base64_of_bin_file(img_file)
     
-    # Menampilkan Judul Berdampingan dengan Gambar menggunakan HTML
+    # Menampilkan Judul & Gambar Bulat Mewah menggunakan HTML
     st.markdown(f"""
-        <div style="display: flex; align-items: center; gap: 15px; border-bottom: 2px solid #555; padding-bottom: 15px; margin-bottom: 15px;">
-            <img src="data:image/png;base64,{img_base64}" width="70" height="70" style="border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
-            <h1 style="margin: 0; padding: 0; border: none; font-size: 32px;">Sistem Rekomendasi Paket Menu Harian Sehat</h1>
+        <div style="display: flex; align-items: center; gap: 20px; border-bottom: 2px solid rgba(255,255,255,0.1); padding-bottom: 20px; margin-bottom: 20px;">
+            <img src="data:image/png;base64,{img_base64}" 
+                 style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 3px solid rgba(255,255,255,0.2); box-shadow: 0 4px 8px rgba(0,0,0,0.3);">
+            <h1 style="margin: 0; padding: 0; border: none; font-size: 36px; font-weight: 800; letter-spacing: -1px;">Sistem Rekomendasi Paket Menu Harian Sehat</h1>
         </div>
         """, unsafe_allow_html=True)
 else:
-    # Jika gambar tidak ketemu di folder, pakai title standar
+    # Jika gambar tidak ketemu, pakai title standar
     st.title("🥗 Sistem Rekomendasi Paket Menu Harian Sehat")
 
-# Pesan pengantar yang sudah diubah copywritingnya
-st.write("Wujudkan gaya hidup sehat dengan panduan pola makan harian bergizi yang disesuaikan khusus untuk kebutuhan tubuhmu!")
+# --- STYLE BARU UNTUK TAGLINE (MIRING, KUTIP, AGAK BESAR) ---
+st.markdown("""
+    <div style="font-style: italic; font-size: 18px; color: rgba(255,255,255,0.7); margin-top: -10px; margin-bottom: 20px; padding-left: 10px;">
+        “ Wujudkan gaya hidup sehat dengan panduan pola makan harian bergizi yang disesuaikan khusus untuk kebutuhan tubuhmu! ”
+    </div>
+    """, unsafe_allow_html=True)
+
 st.markdown("---")
 
 # ==========================================
@@ -96,15 +107,15 @@ def format_menu_menyamping(sarapan, siang, malam):
     return pd.DataFrame(data_tabel)
 
 # ==========================================
-# 3. FORM INPUT DATA PENGGUNA (SIDEBAR - DIPERTAHANKAN)
+# 3. FORM INPUT DATA PENGGUNA (SIDEBAR)
 # ==========================================
 with st.sidebar:
     st.header("📝 Form Data Diri")
     with st.form("form_pengguna"):
         nama = st.text_input("Nama Lengkap")
         gender = st.selectbox("Jenis Kelamin", ["Laki-laki", "Perempuan"])
-        # Mengatur placeholder dan value=None agar kosong saat awal
-        usia = st.number_input("Usia (Tahun)", min_value=1, value=None, placeholder="Ketik Usia...", step=1)
+        # Mengatur value=None agar kosong saat awal
+        usia = st.number_input("Usia (Tahun)", min_value=1, value=None, placeholder="Ketik Usia Anda...", step=1)
         bb = st.number_input("Berat Badan (kg)", min_value=10, value=None, placeholder="Ketik BB...", step=1) 
         tb = st.number_input("Tinggi Badan (cm)", min_value=50, value=None, placeholder="Ketik TB...", step=1)
         
@@ -212,7 +223,7 @@ if submitted:
             st.write("### 🍱 Rincian Menu Harian")
             # Memanggil fungsi tabel menyamping
             df_menu_rapi = format_menu_menyamping(top_1['Sarapan'], top_1['Makan Siang'], top_1['Makan Malam'])
-            # Menampilkan tabel statis
+            # Menampilkan tabel statis agar rapi
             st.table(df_menu_rapi.assign(hack='').set_index('hack'))
             
             # Detail Info
