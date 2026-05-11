@@ -11,10 +11,9 @@ from sklearn.metrics.pairwise import cosine_similarity
 # ==========================================
 st.set_page_config(page_title="Sistem Rekomendasi Diet", page_icon="🥗", layout="wide")
 
-# JURUS RAHASIA CSS UNTUK MENGHILANGKAN TULISAN "Press Enter..."
+# CSS UNTUK MENGHILANGKAN TULISAN "Press Enter..."
 st.markdown("""
     <style>
-    /* Menyembunyikan teks instruksi bawaan Streamlit di dalam input form */
     div[data-testid="InputInstructions"] {
         display: none !important;
     }
@@ -39,10 +38,8 @@ def format_menu_menyamping(sarapan, siang, malam):
         berat_list = []
         
         for item in items:
-            # Mencari berat di dalam kurung menggunakan Regex
             gram_match = re.search(r'\((.*?)\)', item)
             berat = gram_match.group(1) if gram_match else "-"
-            # Menghapus bagian dalam kurung dari nama menu
             nama_menu = re.sub(r'\(.*?\)', '', item).strip()
             
             nama_list.append(nama_menu)
@@ -56,7 +53,7 @@ def format_menu_menyamping(sarapan, siang, malam):
     return pd.DataFrame(data_tabel)
 
 # ==========================================
-# 3. FORM INPUT DATA PENGGUNA
+# 3. FORM INPUT DATA PENGGUNA (SIDEBAR)
 # ==========================================
 with st.sidebar:
     st.header("📝 Form Data Diri")
@@ -65,11 +62,9 @@ with st.sidebar:
         gender = st.selectbox("Jenis Kelamin", ["Laki-laki", "Perempuan"])
         usia = st.number_input("Usia (Tahun)", min_value=18, max_value=40, value=22, step=1)
         
-        # Mengatur value=None agar kotak kosong saat awal dibuka
         bb = st.number_input("Berat Badan (kg)", min_value=30, value=None, placeholder="Ketik BB...", step=1) 
         tb = st.number_input("Tinggi Badan (cm)", min_value=100, value=None, placeholder="Ketik TB...", step=1)
         
-        # OPSI DISAMAKAN 100% DENGAN KUESIONER GOOGLE FORM
         aktivitas = st.selectbox("Tingkat Aktivitas", [
             "Sangat Ringan (Duduk bekerja/belajar, hampir tidak pernah olahraga)",
             "Ringan (Aktivitas sehari-hari + Olahraga ringan 1-3 hari/minggu)",
@@ -90,7 +85,6 @@ with st.sidebar:
 # 4. PROSES PERHITUNGAN & MODELLING
 # ==========================================
 if submitted:
-    # Validasi jika form belum diisi lengkap
     if not nama or bb is None or tb is None:
         st.warning("⚠️ Mohon lengkapi Nama, Berat Badan, dan Tinggi Badan Anda di form samping!")
     else:
@@ -100,7 +94,6 @@ if submitted:
         else:
             bmr = (10 * bb) + (6.25 * tb) - (5 * usia) - 161
             
-        # PEMETAAN NILAI PAL YANG BARU DAN AKURAT
         pal_dict = {
             "Sangat Ringan (Duduk bekerja/belajar, hampir tidak pernah olahraga)": 1.2,
             "Ringan (Aktivitas sehari-hari + Olahraga ringan 1-3 hari/minggu)": 1.375,
@@ -108,8 +101,6 @@ if submitted:
             "Berat (Pekerjaan fisik/Olahraga berat 6-7 hari/minggu)": 1.725,
             "Sangat Berat (Atlet profesional atau pekerjaan fisik sangat berat setiap hari)": 1.9
         }
-        
-        # Mengambil nilai pengali (PAL) langsung berdasarkan kalimat yang dipilih
         tdee = bmr * pal_dict[aktivitas]
         
         # B. Target Gizi
@@ -154,23 +145,18 @@ if submitted:
             
             top_1 = df_h.sort_values('Score', ascending=False).iloc[0]
             
-            # --- DISPLAY HASIL REKOMENDASI ---
-            st.success(f"🏆 Rekomendasi Terbaik: Paket {top_1['Id Paket']} (Skor Kemiripan: {top_1['Score']:.4f})")
+            # --- DISPLAY HASIL REKOMENDASI (SUDAH DIPERBAIKI TEKSNYA) ---
+            st.success(f"🏆 Rekomendasi Terbaik: Paket {top_1['Id Paket']} (Kategori: {top_1['Paket']}) (Skor Kemiripan: {top_1['Score']:.4f})")
             
             st.write("### 🍱 Rincian Menu Harian")
             
-            # Memanggil fungsi format menyamping
             df_menu_rapi = format_menu_menyamping(top_1['Sarapan'], top_1['Makan Siang'], top_1['Makan Malam'])
-            
-            # Menampilkan tabel
             st.table(df_menu_rapi.assign(hack='').set_index('hack'))
             
-            # Detail Info Bawah
             st.info(f"💡 **Informasi Gizi Paket:** Menu ini mengandung total **{top_1['Total Kalori']} Kkal**. "
                     f"Selisih dengan target Anda adalah **{abs(top_1['Total Kalori'] - target_kalori):.1f} Kkal**.")
             
         else:
             st.error("File 'datasetpaketmenu.csv' tidak ditemukan.")
 else:
-    # Tampilan awal saat belum submit
     st.info("👈 Silakan isi form data diri Anda pada sidebar di sebelah kiri lalu klik 'Cari Rekomendasi'.")
