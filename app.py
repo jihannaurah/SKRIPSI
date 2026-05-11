@@ -62,8 +62,8 @@ else:
     st.title("🥗 Sistem Rekomendasi Paket Menu Harian Sehat")
 
 st.markdown("""
-    <div style="text-align: center; font-style: italic; font-size: 20px; color: rgba(255,255,255,0.8); margin-top: -10px; margin-bottom: 30px;">
-        “ Wujudkan gaya hidup sehat dengan panduan pola makan harian bergizi yang disesuaikan khusus untuk kebutuhan tubuhmu! ”
+    <div style="text-align: center; font-style: italic; font-size: 16px; color: #FFFFFF; margin-top: -10px; margin-bottom: 30px;">
+        "Wujudkan gaya hidup sehat dengan panduan pola makan harian bergizi yang disesuaikan khusus untuk kebutuhan tubuhmu!"
     </div>
     """, unsafe_allow_html=True)
 
@@ -163,4 +163,50 @@ if submitted:
         t_lemak = (target_kalori * 0.30) / 9
 
         st.subheader(f"📊 Hasil Analisis Kebutuhan Energi: {nama.upper()}")
-        col_m1, col_m2, col_m3, col_m4
+        col_m1, col_m2, col_m3, col_m4 = st.columns(4)
+        with col_m1:
+            st.metric("Target Kalori", f"{target_kalori:.0f} (Kkal)")
+        with col_m2:
+            st.metric("Protein", f"{t_protein:.1f} (g)")
+        with col_m3:
+            st.metric("Karbohidrat", f"{t_karbo:.1f} (g)")
+        with col_m4:
+            st.metric("Lemak", f"{t_lemak:.1f} (g)")
+        
+        st.markdown("---")
+
+        file_paket = 'datasetpaketmenu.csv' 
+        if os.path.exists(file_paket):
+            df_paket = pd.read_csv(file_paket, sep=';')
+            df_paket.columns = df_paket.columns.str.strip()
+            
+            scaler = MinMaxScaler()
+            fitur = ['Total Kalori', 'Total Protein', 'Total Karbohidrat', 'Total Lemak']
+            vektor_db = scaler.fit_transform(df_paket[fitur])
+            
+            target_vec = pd.DataFrame([[target_kalori, t_protein, t_karbo, t_lemak]], columns=fitur)
+            vektor_user = scaler.transform(target_vec)
+            
+            skor = cosine_similarity(vektor_user, vektor_db)[0]
+            df_paket['Score'] = skor
+            
+            if "Defisit" in goal: df_h = df_paket[df_paket['Paket'].str.startswith('D')]
+            elif "Surplus" in goal: df_h = df_paket[df_paket['Paket'].str.startswith('S')]
+            else: df_h = df_paket[df_paket['Paket'].str.startswith('M')]
+            
+            top_1 = df_h.sort_values('Score', ascending=False).iloc[0]
+            
+            st.success(f"🏆 Rekomendasi Terbaik: Paket {top_1['Id Paket']} (Kategori: {top_1['Paket']}) (Skor Kemiripan: {top_1['Score']:.4f})")
+            
+            st.write("### 🍱 Rincian Menu Harian")
+            df_menu_rapi = format_menu_menyamping(top_1['Sarapan'], top_1['Makan Siang'], top_1['Makan Malam'])
+            st.table(df_menu_rapi.assign(hack='').set_index('hack'))
+            
+            st.info(f"💡 **Informasi Gizi Paket:** Menu ini mengandung total **{top_1['Total Kalori']} (Kkal)**. "
+                    f"Selisih dengan target Anda adalah **{abs(top_1['Total Kalori'] - target_kalori):.1f} (Kkal)**.")
+        else:
+            st.error("File 'datasetpaketmenu.csv' tidak ditemukan.")
+
+# PASTIKAN DUA BARIS DI BAWAH INI IKUT TERSALIN YA!
+else:
+    st.info("👈 Silakan isi form data diri Anda pada sidebar di sebelah kiri lalu klik 'Cari Rekomendasi'.")
