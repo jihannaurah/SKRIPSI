@@ -11,37 +11,23 @@ from sklearn.metrics.pairwise import cosine_similarity
 # ==========================================
 st.set_page_config(page_title="Sistem Rekomendasi Diet", page_icon="🥗", layout="wide")
 
-# CSS Custom untuk mempercantik tampilan tabel
-st.markdown("""
-    <style>
-    .main {
-        background-color: #f8f9fa;
-    }
-    .stMetric {
-        background-color: #ffffff;
-        padding: 15px;
-        border-radius: 10px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-    }
-    </style>
-    """, unsafe_allow_html=True)
-
 st.title("🥗 Sistem Rekomendasi Paket Menu Diet")
 st.write("Dapatkan rekomendasi menu harian yang dipersonalisasi berdasarkan algoritma AI Cosine Similarity.")
 st.markdown("---")
 
 # ==========================================
-# 2. FUNGSI PEMBANTU (PARSING MENU)
+# 2. FUNGSI PEMBANTU (PARSING MENU MENYAMPING)
 # ==========================================
-def pecah_menu_ke_tabel(sarapan, siang, malam):
-    """Fungsi untuk memecah string menu menjadi baris tabel yang rapi"""
+def format_menu_menyamping(sarapan, siang, malam):
+    """Fungsi untuk memecah string menu menjadi kolom tersendiri per waktu makan"""
     data_tabel = []
-    
     waktu_makan = [("🌅 Sarapan", sarapan), ("☀️ Makan Siang", siang), ("🌙 Makan Malam", malam)]
     
     for waktu, menu_str in waktu_makan:
-        # Memisahkan berdasarkan koma
         items = menu_str.split(',')
+        nama_list = []
+        berat_list = []
+        
         for item in items:
             # Mencari berat di dalam kurung menggunakan Regex
             gram_match = re.search(r'\((.*?)\)', item)
@@ -49,11 +35,14 @@ def pecah_menu_ke_tabel(sarapan, siang, malam):
             # Menghapus bagian dalam kurung dari nama menu
             nama_menu = re.sub(r'\(.*?\)', '', item).strip()
             
-            data_tabel.append({
-                "Waktu Makan": waktu,
-                "Nama Menu": nama_menu,
-                "Porsi / Berat": berat
-            })
+            nama_list.append(nama_menu)
+            berat_list.append(berat)
+            
+        data_tabel.append({
+            "Waktu Makan": waktu,
+            "Daftar Menu": ", ".join(nama_list),
+            "Total Porsi/Gram": ", ".join(berat_list)
+        })
     return pd.DataFrame(data_tabel)
 
 # ==========================================
@@ -65,8 +54,10 @@ with st.sidebar:
         nama = st.text_input("Nama Lengkap")
         gender = st.selectbox("Jenis Kelamin", ["Laki-laki", "Perempuan"])
         usia = st.number_input("Usia (Tahun)", min_value=18, max_value=40, value=22, step=1)
-        bb = st.number_input("Berat Badan (kg)", min_value=30, value=50, step=1) # Tanpa koma
-        tb = st.number_input("Tinggi Badan (cm)", min_value=100, value=160, step=1) # Tanpa koma
+        
+        # Mengatur value=None agar kotak kosong saat awal dibuka
+        bb = st.number_input("Berat Badan (kg)", min_value=30, value=None, placeholder="Ketik BB Anda...", step=1) 
+        tb = st.number_input("Tinggi Badan (cm)", min_value=100, value=None, placeholder="Ketik TB Anda...", step=1)
         
         aktivitas = st.selectbox("Tingkat Aktivitas", [
             "Ringan (Jarang olahraga)", 
@@ -86,8 +77,9 @@ with st.sidebar:
 # 4. PROSES PERHITUNGAN & MODELLING
 # ==========================================
 if submitted:
-    if not nama:
-        st.warning("⚠️ Mohon isi Nama Anda di sidebar!")
+    # Validasi jika form belum diisi lengkap
+    if not nama or bb is None or tb is None:
+        st.warning("⚠️ Mohon lengkapi Nama, Berat Badan, dan Tinggi Badan Anda di form samping!")
     else:
         # A. Perhitungan BMR & TDEE
         if gender == "Laki-laki":
@@ -108,8 +100,8 @@ if submitted:
         t_karbo = (target_kalori * 0.50) / 4
         t_lemak = (target_kalori * 0.30) / 9
 
-        # --- DISPLAY TARGET KALORI (DIPERJELAS) ---
-        st.subheader(f"📊 Hasil Analisis Kebutuhan Energi: {nama}")
+        # --- DISPLAY TARGET KALORI (TANPA CUSTOM CSS AGAR WARNA AMAN) ---
+        st.subheader(f"📊 Hasil Analisis Kebutuhan Energi: {nama.upper()}")
         c1, c2, c3, c4 = st.columns(4)
         c1.metric("Target Kalori", f"{target_kalori:.0f} Kkal")
         c2.metric("Protein", f"{t_protein:.1f}g")
@@ -144,13 +136,13 @@ if submitted:
             # --- DISPLAY HASIL REKOMENDASI ---
             st.success(f"🏆 Rekomendasi Terbaik: Paket {top_1['Id Paket']} (Skor Kemiripan: {top_1['Score']:.4f})")
             
-            st.write("### 🍱 Rincian Menu Harian (Gramasi Terperinci)")
+            st.write("### 🍱 Rincian Menu Harian")
             
-            # Memanggil fungsi pemecah tabel
-            df_menu_rapi = pecah_menu_ke_tabel(top_1['Sarapan'], top_1['Makan Siang'], top_1['Makan Malam'])
+            # Memanggil fungsi format menyamping
+            df_menu_rapi = format_menu_menyamping(top_1['Sarapan'], top_1['Makan Siang'], top_1['Makan Malam'])
             
-            # Menampilkan tabel statis agar rapi
-            st.table(df_menu_rapi)
+            # Menampilkan tabel
+            st.table(df_menu_rapi.assign(hack='').set_index('hack'))
             
             # Detail Info Bawah
             st.info(f"💡 **Informasi Gizi Paket:** Menu ini mengandung total **{top_1['Total Kalori']} Kkal**. "
@@ -160,4 +152,4 @@ if submitted:
             st.error("File 'datasetpaketmenu.csv' tidak ditemukan.")
 else:
     # Tampilan awal saat belum submit
-    st.info("👈 Silakan masukkan data diri Anda pada sidebar di sebelah kiri untuk melihat rekomendasi.")
+    st.info("👈 Silakan isi form data diri Anda pada sidebar di sebelah kiri lalu klik 'Cari Rekomendasi'.")
