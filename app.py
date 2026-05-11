@@ -59,12 +59,15 @@ with st.sidebar:
         bb = st.number_input("Berat Badan (kg)", min_value=30, value=None, placeholder="Ketik BB Anda...", step=1) 
         tb = st.number_input("Tinggi Badan (cm)", min_value=100, value=None, placeholder="Ketik TB Anda...", step=1)
         
+        # OPSI DISAMAKAN 100% DENGAN KUESIONER GOOGLE FORM
         aktivitas = st.selectbox("Tingkat Aktivitas", [
-            "Ringan (Jarang olahraga)", 
-            "Sedang (Olahraga 1-3x seminggu)", 
-            "Berat (Olahraga 3-5x seminggu)", 
-            "Sangat Berat (Olahraga tiap hari)"
+            "Sangat Ringan (Duduk bekerja/belajar, hampir tidak pernah olahraga)",
+            "Ringan (Aktivitas sehari-hari + Olahraga ringan 1-3 hari/minggu)",
+            "Sedang (Aktivitas cukup padat + Olahraga kardio/gym 3-5 hari/minggu)",
+            "Berat (Pekerjaan fisik/Olahraga berat 6-7 hari/minggu)",
+            "Sangat Berat (Atlet profesional atau pekerjaan fisik sangat berat setiap hari)"
         ])
+        
         goal = st.selectbox("Tujuan Diet (Goal)", [
             "Defisit (Menurunkan Berat Badan)", 
             "Maintenance (Menjaga Berat Badan)", 
@@ -87,9 +90,17 @@ if submitted:
         else:
             bmr = (10 * bb) + (6.25 * tb) - (5 * usia) - 161
             
-        pal = {"Ringan": 1.375, "Sedang": 1.55, "Berat": 1.725, "Sangat Berat": 1.9}
-        key_pal = [k for k in pal.keys() if k in aktivitas][0]
-        tdee = bmr * pal[key_pal]
+        # PEMETAAN NILAI PAL YANG BARU DAN AKURAT
+        pal_dict = {
+            "Sangat Ringan (Duduk bekerja/belajar, hampir tidak pernah olahraga)": 1.2,
+            "Ringan (Aktivitas sehari-hari + Olahraga ringan 1-3 hari/minggu)": 1.375,
+            "Sedang (Aktivitas cukup padat + Olahraga kardio/gym 3-5 hari/minggu)": 1.55,
+            "Berat (Pekerjaan fisik/Olahraga berat 6-7 hari/minggu)": 1.725,
+            "Sangat Berat (Atlet profesional atau pekerjaan fisik sangat berat setiap hari)": 1.9
+        }
+        
+        # Mengambil nilai pengali (PAL) langsung berdasarkan kalimat yang dipilih
+        tdee = bmr * pal_dict[aktivitas]
         
         # B. Target Gizi
         target_kalori = tdee
@@ -100,7 +111,7 @@ if submitted:
         t_karbo = (target_kalori * 0.50) / 4
         t_lemak = (target_kalori * 0.30) / 9
 
-        # --- DISPLAY TARGET KALORI (TANPA CUSTOM CSS AGAR WARNA AMAN) ---
+        # --- DISPLAY TARGET KALORI ---
         st.subheader(f"📊 Hasil Analisis Kebutuhan Energi: {nama.upper()}")
         c1, c2, c3, c4 = st.columns(4)
         c1.metric("Target Kalori", f"{target_kalori:.0f} Kkal")
