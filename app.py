@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import os
 import re
+import base64 # Untuk memproses gambar lokal
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics.pairwise import cosine_similarity
 
@@ -11,6 +12,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 # ==========================================
 st.set_page_config(page_title="Sistem Rekomendasi Diet", page_icon="🥗", layout="wide")
 
+# CSS UNTUK KOTAK METRIK DAN MENGHILANGKAN INSTRUKSI FORM
 st.markdown("""
     <style>
     div[data-testid="InputInstructions"] { display: none !important; }
@@ -31,15 +33,43 @@ st.markdown("""
         font-weight: 600 !important;
         color: #00d4ff !important; 
     }
+    /* Mengatur style agar tabel statis rapi menyamping */
+    .stTable {
+        width: 100% !important;
+    }
     </style>
     """, unsafe_allow_html=True)
 
-st.title("🥗 Sistem Rekomendasi Paket Menu Harian Sehat")
-st.write("Mulai Hidup Sehat Dengan Menentukan Makanan Harian yang Sehat.")
+# --- FUNGSI UNTUK MEMANGGIL GAMBAR LOKAL KE HTML ---
+def get_base64_of_bin_file(bin_file):
+    with open(bin_file, 'rb') as f:
+        data = f.read()
+    return base64.b64encode(data).decode()
+
+# File gambar yang diupload user
+img_file = 'Macronutrients.png' 
+
+if os.path.exists(img_file):
+    # Mengubah gambar menjadi base64 agar bisa dibaca HTML
+    img_base64 = get_base64_of_bin_file(img_file)
+    
+    # Menampilkan Judul Berdampingan dengan Gambar menggunakan HTML
+    st.markdown(f"""
+        <div style="display: flex; align-items: center; gap: 15px; border-bottom: 2px solid #555; padding-bottom: 15px; margin-bottom: 15px;">
+            <img src="data:image/png;base64,{img_base64}" width="70" height="70" style="border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+            <h1 style="margin: 0; padding: 0; border: none; font-size: 32px;">Sistem Rekomendasi Paket Menu Harian Sehat</h1>
+        </div>
+        """, unsafe_allow_html=True)
+else:
+    # Jika gambar tidak ketemu di folder, pakai title standar
+    st.title("🥗 Sistem Rekomendasi Paket Menu Harian Sehat")
+
+# Pesan pengantar yang sudah diubah copywritingnya
+st.write("Wujudkan gaya hidup sehat dengan panduan pola makan harian bergizi yang disesuaikan khusus untuk kebutuhan tubuhmu!")
 st.markdown("---")
 
 # ==========================================
-# 2. FUNGSI PEMBANTU
+# 2. FUNGSI PEMBANTU (PARSING TABEL MENYAMPING)
 # ==========================================
 def format_menu_menyamping(sarapan, siang, malam):
     data_tabel = []
@@ -66,17 +96,15 @@ def format_menu_menyamping(sarapan, siang, malam):
     return pd.DataFrame(data_tabel)
 
 # ==========================================
-# 3. FORM INPUT DATA PENGGUNA (SIDEBAR)
+# 3. FORM INPUT DATA PENGGUNA (SIDEBAR - DIPERTAHANKAN)
 # ==========================================
 with st.sidebar:
     st.header("📝 Form Data Diri")
     with st.form("form_pengguna"):
         nama = st.text_input("Nama Lengkap")
         gender = st.selectbox("Jenis Kelamin", ["Laki-laki", "Perempuan"])
-        
-        # Usia dibiarkan bisa diisi bebas (untuk mengetes validasi)
-        usia = st.number_input("Usia (Tahun)", min_value=1, value=None, placeholder="Ketik Usia Anda...", step=1)
-        
+        # Mengatur placeholder dan value=None agar kosong saat awal
+        usia = st.number_input("Usia (Tahun)", min_value=1, value=None, placeholder="Ketik Usia...", step=1)
         bb = st.number_input("Berat Badan (kg)", min_value=10, value=None, placeholder="Ketik BB...", step=1) 
         tb = st.number_input("Tinggi Badan (cm)", min_value=50, value=None, placeholder="Ketik TB...", step=1)
         
@@ -94,7 +122,7 @@ with st.sidebar:
             "Surplus (Menambah Massa Otot)"
         ])
 
-        # FITUR BARU: PERTANYAAN ALERGI
+        # FITUR VALIDASI BATASAN MASALAH: ALERGI
         alergi = st.selectbox("Riwayat Alergi Makanan", [
             "Tidak Ada", 
             "Ada Alergi (Seafood, Kacang, Susu, dll)"
@@ -110,17 +138,17 @@ if submitted:
     if not nama or bb is None or tb is None or usia is None:
         st.warning("⚠️ Mohon lengkapi Nama, Usia, Berat Badan, dan Tinggi Badan Anda di form samping!")
         
-    # --- GERBANG VALIDASI 2: Batasan Usia (18 - 40 Tahun) ---
+    # --- GERBANG VALIDASI 2: Batasan Masalah - Usia (18 - 40 Tahun) ---
     elif usia < 18 or usia > 40:
-        st.error(f"🛑 MAAF! Rekomendasi hanya dapat memproses rentang usia dewasa sehat (18 - 40 Tahun). Usia yang Anda masukkan: {usia} Tahun.")
+        st.error(f"🛑 MAAF! Sesuai dengan batasan masalah sistem, rekomendasi hanya dapat memproses rentang usia dewasa (18 - 40 Tahun). Usia yang Anda masukkan: {usia} Tahun.")
         
-    # --- GERBANG VALIDASI 3: Batasan Alergi Makanan ---
+    # --- GERBANG VALIDASI 3: Batasan Masalah - Alergi Makanan ---
     elif alergi != "Tidak Ada":
         st.error("🛑 MAAF! Untuk mencegah risiko medis, saat ini sistem tidak dapat memproses rekomendasi bagi pengguna yang memiliki riwayat alergi makanan.")
         
-    # --- JIKA LOLOS SEMUA VALIDASI, SISTEM DIJALANKAN ---
+    # --- JIKA LOLOS VALIDASI, PROSES DIMULAI ---
     else:
-        # A. Perhitungan BMR & TDEE
+        # A. Perhitungan BMR & TDEE (Mifflin)
         if gender == "Laki-laki":
             bmr = (10 * bb) + (6.25 * tb) - (5 * usia) + 5
         else:
@@ -135,6 +163,7 @@ if submitted:
         }
         tdee = bmr * pal_dict[aktivitas]
         
+        # B. Target Gizi Makro
         target_kalori = tdee
         if "Defisit" in goal: target_kalori -= 500
         elif "Surplus" in goal: target_kalori += 500
@@ -143,18 +172,14 @@ if submitted:
         t_karbo = (target_kalori * 0.50) / 4
         t_lemak = (target_kalori * 0.30) / 9
 
-        # --- DISPLAY TARGET KALORI ---
+        # --- DISPLAY TARGET KALORI DENGAN KOTAK CARD ELEGAN ---
         st.subheader(f"📊 Hasil Analisis Kebutuhan Energi: {nama.upper()}")
         
         col_m1, col_m2, col_m3, col_m4 = st.columns(4)
-        with col_m1:
-            st.metric("Target Kalori", f"{target_kalori:.0f} (Kkal)")
-        with col_m2:
-            st.metric("Protein", f"{t_protein:.1f} (g)")
-        with col_m3:
-            st.metric("Karbohidrat", f"{t_karbo:.1f} (g)")
-        with col_m4:
-            st.metric("Lemak", f"{t_lemak:.1f} (g)")
+        with col_m1: st.metric("Target Kalori", f"{target_kalori:.0f} (Kkal)")
+        with col_m2: st.metric("Protein", f"{t_protein:.1f} (g)")
+        with col_m3: st.metric("Karbohidrat", f"{t_karbo:.1f} (g)")
+        with col_m4: st.metric("Lemak", f"{t_lemak:.1f} (g)")
         
         st.markdown("---")
 
@@ -174,6 +199,7 @@ if submitted:
             skor = cosine_similarity(vektor_user, vektor_db)[0]
             df_paket['Score'] = skor
             
+            # Hybrid Filtering
             if "Defisit" in goal: df_h = df_paket[df_paket['Paket'].str.startswith('D')]
             elif "Surplus" in goal: df_h = df_paket[df_paket['Paket'].str.startswith('S')]
             else: df_h = df_paket[df_paket['Paket'].str.startswith('M')]
@@ -184,12 +210,16 @@ if submitted:
             st.success(f"🏆 Rekomendasi Terbaik: Paket {top_1['Id Paket']} (Kategori: {top_1['Paket']}) (Skor Kemiripan: {top_1['Score']:.4f})")
             
             st.write("### 🍱 Rincian Menu Harian")
+            # Memanggil fungsi tabel menyamping
             df_menu_rapi = format_menu_menyamping(top_1['Sarapan'], top_1['Makan Siang'], top_1['Makan Malam'])
+            # Menampilkan tabel statis
             st.table(df_menu_rapi.assign(hack='').set_index('hack'))
             
+            # Detail Info
             st.info(f"💡 **Informasi Gizi Paket:** Menu ini mengandung total **{top_1['Total Kalori']} (Kkal)**. "
                     f"Selisih dengan target Anda adalah **{abs(top_1['Total Kalori'] - target_kalori):.1f} (Kkal)**.")
         else:
             st.error("File 'datasetpaketmenu.csv' tidak ditemukan.")
 else:
+    # Tampilan awal saat belum submit
     st.info("👈 Silakan isi form data diri Anda pada sidebar di sebelah kiri lalu klik 'Cari Rekomendasi'.")
