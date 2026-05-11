@@ -11,44 +11,35 @@ from sklearn.metrics.pairwise import cosine_similarity
 # ==========================================
 st.set_page_config(page_title="Sistem Rekomendasi Diet", page_icon="🥗", layout="wide")
 
-# CSS UNTUK KOTAK METRIK DAN MENGHILANGKAN INSTRUKSI FORM
 st.markdown("""
     <style>
-    /* 1. Menghilangkan instruksi "Press Enter" */
-    div[data-testid="InputInstructions"] {
-        display: none !important;
-    }
-    
-    /* 2. Style Kotak Metrik (Metric Card) */
+    div[data-testid="InputInstructions"] { display: none !important; }
     [data-testid="stMetric"] {
-        background-color: rgba(255, 255, 255, 0.05); /* Kotak semi transparan */
+        background-color: rgba(255, 255, 255, 0.05); 
         border: 1px solid rgba(255, 255, 255, 0.1);
         padding: 15px 20px;
         border-radius: 15px;
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         transition: transform 0.3s ease;
     }
-    
     [data-testid="stMetric"]:hover {
-        transform: translateY(-5px); /* Efek melayang saat kursor di atas kotak */
+        transform: translateY(-5px); 
         background-color: rgba(255, 255, 255, 0.08);
     }
-
-    /* Mengatur warna label metrik agar tetap kontras */
     [data-testid="stMetricLabel"] p {
         font-size: 16px !important;
         font-weight: 600 !important;
-        color: #00d4ff !important; /* Warna biru cerah untuk label */
+        color: #00d4ff !important; 
     }
     </style>
     """, unsafe_allow_html=True)
 
-st.title("🥗 Sistem Rekomendasi Paket Menu Diet")
+st.title("🥗 Sistem Rekomendasi Paket Menu Harian Sehat")
 st.write("Dapatkan rekomendasi menu harian yang dipersonalisasi berdasarkan algoritma AI Cosine Similarity.")
 st.markdown("---")
 
 # ==========================================
-# 2. FUNGSI PEMBANTU (PARSING MENU MENYAMPING)
+# 2. FUNGSI PEMBANTU
 # ==========================================
 def format_menu_menyamping(sarapan, siang, malam):
     data_tabel = []
@@ -82,10 +73,12 @@ with st.sidebar:
     with st.form("form_pengguna"):
         nama = st.text_input("Nama Lengkap")
         gender = st.selectbox("Jenis Kelamin", ["Laki-laki", "Perempuan"])
-        usia = st.number_input("Usia (Tahun)", min_value=18, max_value=40, value=22, step=1)
         
-        bb = st.number_input("Berat Badan (kg)", min_value=30, value=None, placeholder="Ketik BB...", step=1) 
-        tb = st.number_input("Tinggi Badan (cm)", min_value=100, value=None, placeholder="Ketik TB...", step=1)
+        # Usia dibiarkan bisa diisi bebas (untuk mengetes validasi)
+        usia = st.number_input("Usia (Tahun)", min_value=1, value=None, placeholder="Ketik Usia Anda...", step=1)
+        
+        bb = st.number_input("Berat Badan (kg)", min_value=10, value=None, placeholder="Ketik BB...", step=1) 
+        tb = st.number_input("Tinggi Badan (cm)", min_value=50, value=None, placeholder="Ketik TB...", step=1)
         
         aktivitas = st.selectbox("Tingkat Aktivitas", [
             "Sangat Ringan (Duduk bekerja/belajar, hampir tidak pernah olahraga)",
@@ -100,15 +93,32 @@ with st.sidebar:
             "Maintenance (Menjaga Berat Badan)", 
             "Surplus (Menambah Massa Otot)"
         ])
+
+        # FITUR BARU: PERTANYAAN ALERGI
+        alergi = st.selectbox("Riwayat Alergi Makanan", [
+            "Tidak Ada", 
+            "Ada Alergi (Seafood, Kacang, Susu, dll)"
+        ])
         
         submitted = st.form_submit_button("Cari Rekomendasi 🚀")
 
 # ==========================================
-# 4. PROSES PERHITUNGAN & MODELLING
+# 4. PROSES PERHITUNGAN & VALIDASI
 # ==========================================
 if submitted:
-    if not nama or bb is None or tb is None:
-        st.warning("⚠️ Mohon lengkapi Nama, Berat Badan, dan Tinggi Badan Anda di form samping!")
+    # --- GERBANG VALIDASI 1: Form Kosong ---
+    if not nama or bb is None or tb is None or usia is None:
+        st.warning("⚠️ Mohon lengkapi Nama, Usia, Berat Badan, dan Tinggi Badan Anda di form samping!")
+        
+    # --- GERBANG VALIDASI 2: Batasan Usia (18 - 40 Tahun) ---
+    elif usia < 18 or usia > 40:
+        st.error(f"🛑 MAAF! Rekomendasi hanya dapat memproses rentang usia dewasa sehat (18 - 40 Tahun). Usia yang Anda masukkan: {usia} Tahun.")
+        
+    # --- GERBANG VALIDASI 3: Batasan Alergi Makanan ---
+    elif alergi != "Tidak Ada":
+        st.error("🛑 MAAF! Untuk mencegah risiko medis, saat ini sistem tidak dapat memproses rekomendasi bagi pengguna yang memiliki riwayat alergi makanan.")
+        
+    # --- JIKA LOLOS SEMUA VALIDASI, SISTEM DIJALANKAN ---
     else:
         # A. Perhitungan BMR & TDEE
         if gender == "Laki-laki":
@@ -133,19 +143,18 @@ if submitted:
         t_karbo = (target_kalori * 0.50) / 4
         t_lemak = (target_kalori * 0.30) / 9
 
-        # --- DISPLAY TARGET KALORI DENGAN KOTAK (CARD) ---
+        # --- DISPLAY TARGET KALORI ---
         st.subheader(f"📊 Hasil Analisis Kebutuhan Energi: {nama.upper()}")
         
-        # Area Metrik
         col_m1, col_m2, col_m3, col_m4 = st.columns(4)
         with col_m1:
-            st.metric("Target Kalori", f"{target_kalori:.0f} Kkal")
+            st.metric("Target Kalori", f"{target_kalori:.0f} (Kkal)")
         with col_m2:
-            st.metric("Protein", f"{t_protein:.1f}g")
+            st.metric("Protein", f"{t_protein:.1f} (g)")
         with col_m3:
-            st.metric("Karbohidrat", f"{t_karbo:.1f}g")
+            st.metric("Karbohidrat", f"{t_karbo:.1f} (g)")
         with col_m4:
-            st.metric("Lemak", f"{t_lemak:.1f}g")
+            st.metric("Lemak", f"{t_lemak:.1f} (g)")
         
         st.markdown("---")
 
@@ -178,8 +187,8 @@ if submitted:
             df_menu_rapi = format_menu_menyamping(top_1['Sarapan'], top_1['Makan Siang'], top_1['Makan Malam'])
             st.table(df_menu_rapi.assign(hack='').set_index('hack'))
             
-            st.info(f"💡 **Informasi Gizi Paket:** Menu ini mengandung total **{top_1['Total Kalori']} Kkal**. "
-                    f"Selisih dengan target Anda adalah **{abs(top_1['Total Kalori'] - target_kalori):.1f} Kkal**.")
+            st.info(f"💡 **Informasi Gizi Paket:** Menu ini mengandung total **{top_1['Total Kalori']} (Kkal)**. "
+                    f"Selisih dengan target Anda adalah **{abs(top_1['Total Kalori'] - target_kalori):.1f} (Kkal)**.")
         else:
             st.error("File 'datasetpaketmenu.csv' tidak ditemukan.")
 else:
