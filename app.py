@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import os
+import re
 import base64
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics.pairwise import cosine_similarity
@@ -18,22 +19,23 @@ st.markdown("""
     [data-testid="stMetric"] {
         background-color: rgba(255, 255, 255, 0.05); 
         border: 1px solid rgba(255, 255, 255, 0.1);
-        padding: 15px 20px;
+        padding: 10px 5px;
         border-radius: 15px;
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        transition: transform 0.3s ease;
-    }
-    [data-testid="stMetric"]:hover {
-        transform: translateY(-5px); 
-        background-color: rgba(255, 255, 255, 0.08);
+        text-align: center;
     }
     [data-testid="stMetricLabel"] p {
-        font-size: 16px !important;
+        font-size: 14px !important;
         font-weight: 600 !important;
         color: #00d4ff !important; 
     }
+    [data-testid="stMetricValue"] > div {
+        font-size: 20px !important;
+    }
+    /* Mengatur style Tabel agar terlihat profesional */
     .stTable {
-        border: none !important;
+        background-color: rgba(255, 255, 255, 0.02);
+        border-radius: 10px;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -69,7 +71,42 @@ st.markdown("""
 st.markdown("---")
 
 # ==========================================
-# 2. FORM INPUT DATA PENGGUNA (SIDEBAR)
+# 2. FUNGSI PEMBANTU (FORMAT TABEL MENU)
+# ==========================================
+def format_menu_ke_tabel(sarapan, siang, malam):
+    """Memecah menu harian menjadi baris tabel yang rapi"""
+    data_tabel = []
+    waktu_makan = [("🌅 Sarapan", sarapan), ("☀️ Makan Siang", siang), ("🌙 Makan Malam", malam)]
+    
+    for waktu, menu_str in waktu_makan:
+        # Pisahkan jika ada lebih dari satu jenis makanan (misal: Nasi, Ikan)
+        items = menu_str.split(',')
+        nama_list = []
+        porsi_list = []
+        
+        for item in items:
+            # Mencari teks di dalam kurung untuk porsi/gram
+            match = re.search(r'\((.*?)\)', item)
+            if match:
+                porsi = match.group(1)
+                # Nama menu adalah teks di luar kurung
+                nama_menu = re.sub(r'\(.*?\)', '', item).strip()
+                nama_list.append(nama_menu)
+                porsi_list.append(porsi)
+            else:
+                nama_list.append(item.strip())
+                porsi_list.append("-")
+        
+        data_tabel.append({
+            "Waktu Makan": waktu,
+            "Menu Masakan": " & ".join(nama_list),
+            "Porsi / Gram": " & ".join(porsi_list)
+        })
+    
+    return pd.DataFrame(data_tabel)
+
+# ==========================================
+# 3. FORM INPUT DATA PENGGUNA (SIDEBAR)
 # ==========================================
 with st.sidebar:
     st.header("📝 Form Data Diri")
@@ -102,17 +139,17 @@ with st.sidebar:
         submitted = st.form_submit_button("Cari Rekomendasi 🚀")
 
 # ==========================================
-# 3. PROSES PERHITUNGAN & VALIDASI
+# 4. PROSES PERHITUNGAN & VALIDASI
 # ==========================================
 if submitted:
     if not nama or bb is None or tb is None or usia is None:
         st.warning("⚠️ Mohon lengkapi Nama, Usia, Berat Badan, dan Tinggi Badan Anda di form samping!")
     elif usia < 18 or usia > 40:
-        st.error(f"🛑 MAAF! Rekomendasi hanya dapat memproses rentang usia dewasa (18 - 40 Tahun). Usia Anda: {usia} Tahun.")
+        st.error(f"🛑 MAAF! Rekomendasi hanya untuk usia dewasa (18-40 Tahun).")
     elif alergi != "Tidak Ada":
-        st.error("🛑 MAAF! Saat ini sistem tidak dapat memproses rekomendasi bagi pengguna yang memiliki riwayat alergi makanan.")
+        st.error("🛑 MAAF! Sistem tidak memproses pengguna dengan riwayat alergi.")
     else:
-        # Perhitungan BMR
+        # Perhitungan BMR & TDEE
         if gender == "Laki-laki":
             bmr = (10 * bb) + (6.25 * tb) - (5 * usia) + 5
         else:
@@ -127,7 +164,6 @@ if submitted:
         }
         tdee = bmr * pal_dict[aktivitas]
         
-        # Target Kalori
         target_kalori = tdee
         if "Defisit" in goal: target_kalori -= 500
         elif "Surplus" in goal: target_kalori += 500
@@ -138,14 +174,10 @@ if submitted:
 
         st.subheader(f"📊 Hasil Analisis Kebutuhan Energi: {nama.upper()}")
         col_m1, col_m2, col_m3, col_m4 = st.columns(4)
-        with col_m1:
-            st.metric("Target Kalori", f"{target_kalori:.1f} (Kkal)")
-        with col_m2:
-            st.metric("Protein", f"{t_protein:.1f} (g)")
-        with col_m3:
-            st.metric("Karbohidrat", f"{t_karbo:.1f} (g)")
-        with col_m4:
-            st.metric("Lemak", f"{t_lemak:.1f} (g)")
+        with col_m1: st.metric("Target Kalori", f"{target_kalori:.1f} (Kkal)")
+        with col_m2: st.metric("Protein", f"{t_protein:.1f} (g)")
+        with col_m3: st.metric("Karbohidrat", f"{t_karbo:.1f} (g)")
+        with col_m4: st.metric("Lemak", f"{t_lemak:.1f} (g)")
         
         st.markdown("---")
 
@@ -174,19 +206,13 @@ if submitted:
             
             st.write("### 🍱 Rincian Menu Harian")
             
-            # --- TAMPILAN BARU UNTUK DETAIL MAKANAN (SAMA SEPERTI COLAB) ---
-            st.markdown(f"""
-            <div style="background-color: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); padding: 20px; border-radius: 10px; margin-bottom: 20px;">
-                <p style="font-size: 16px; line-height: 1.8; color: #E0E0E0; margin: 0;">
-                    {top_1['Detail Makanan']}
-                </p>
-            </div>
-            """, unsafe_allow_html=True)
+            # --- MENAMPILKAN TABEL MENU YANG RAPI ---
+            df_tabel_rapi = format_menu_ke_tabel(top_1['Sarapan'], top_1['Makan Siang'], top_1['Makan Malam'])
+            st.table(df_tabel_rapi.assign(hack='').set_index('hack'))
             
             st.info(f"💡 **Informasi Gizi Paket:** Menu ini mengandung total **{top_1['Total Kalori']} (Kkal)**. "
                     f"Selisih dengan target Anda adalah **{abs(top_1['Total Kalori'] - target_kalori):.1f} (Kkal)**.")
         else:
             st.error("File 'datasetpaketmenu.csv' tidak ditemukan.")
-
 else:
     st.info("👈 Silakan isi form data diri Anda pada sidebar di sebelah kiri lalu klik 'Cari Rekomendasi'.")
