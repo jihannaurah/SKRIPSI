@@ -15,7 +15,6 @@ st.set_page_config(page_title="Sistem Rekomendasi Diet", page_icon="🥗", layou
 
 st.markdown("""
     <style>
-    /* HAPUS TULISAN PRESS ENTER */
     [data-testid="InputInstructions"] { display: none !important; }
     
     .block-container {
@@ -23,7 +22,6 @@ st.markdown("""
         padding-bottom: 5rem !important;
     }
 
-    /* KOTAK METRIC */
     [data-testid="stMetric"] {
         background-color: rgba(0, 212, 255, 0.05); 
         border: 1px solid rgba(0, 212, 255, 0.2);
@@ -38,7 +36,6 @@ st.markdown("""
         color: #00b4d8 !important; 
     }
 
-    /* KOTAK DESKRIPSI ADAPTIF */
     .desc-box {
         background-color: rgba(0, 212, 255, 0.08); 
         border-left: 5px solid #00d4ff; 
@@ -51,9 +48,9 @@ st.markdown("""
         border: 1px solid rgba(0, 212, 255, 0.1);
     }
 
-    /* HILANGKAN KOLOM INDEX/HACK DI TABEL */
-    thead tr th:first-child { display:none; }
-    tbody tr th:first-child { display:none; }
+    /* CSS HAPUS KOLOM INDEX TANPA HAPUS ISI */
+    table th:first-child { display: none !important; }
+    table td:first-child { display: none !important; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -82,7 +79,7 @@ def format_menu_ke_tabel(sarapan, siang, malam):
         })
     return pd.DataFrame(data_tabel)
 
-# HEADER: LOGO & JUDUL (KEMBALI KE DESAIN AWAL)
+# HEADER
 img_file = 'Macronutrients.png' 
 if os.path.exists(img_file):
     img_base64 = get_base64_of_bin_file(img_file)
@@ -93,7 +90,6 @@ if os.path.exists(img_file):
         </div>
         """, unsafe_allow_html=True)
 
-# TAGLINE
 st.markdown("""
     <div style="text-align: center; font-style: italic; font-size: 16px; margin-top: -10px; margin-bottom: 10px;">
         "Wujudkan gaya hidup sehat dengan panduan pola makan harian bergizi yang disesuaikan khusus untuk kebutuhan tubuhmu!"
@@ -112,11 +108,9 @@ with st.sidebar:
     with st.form("form_pengguna"):
         nama = st.text_input("Nama Lengkap")
         gender = st.selectbox("Jenis Kelamin", ["Laki-laki", "Perempuan"])
-        # INPUT DIKOSONGKAN (value=None)
         usia = st.number_input("Usia (Tahun)", min_value=1, value=None, placeholder="Input Usia...", step=1)
         bb = st.number_input("Berat Badan (kg)", min_value=10, value=None, placeholder="Input BB...", step=1) 
         tb = st.number_input("Tinggi Badan (cm)", min_value=50, value=None, placeholder="Input TB...", step=1)
-        
         aktivitas = st.selectbox("Tingkat Aktivitas", [
             "Sangat Ringan (Duduk bekerja/belajar, hampir tidak pernah olahraga)",
             "Ringan (Aktivitas sehari-hari + Olahraga ringan 1-3 hari/minggu)",
@@ -129,23 +123,15 @@ with st.sidebar:
         submitted = st.form_submit_button("Cari Rekomendasi 🚀")
 
         if submitted:
-            if not nama or bb is None or tb is None or usia is None:
+            if not (nama and bb and tb and usia):
                 st.warning("⚠️ Mohon lengkapi data diri Anda!")
             elif alergi != "Tidak Ada":
                 st.error("🛑 Sistem tidak memproses pengguna dengan alergi.")
             else:
-                # HITUNG BMR & TDEE
                 if gender == "Laki-laki": bmr = (10 * bb) + (6.25 * tb) - (5 * usia) + 5
                 else: bmr = (10 * bb) + (6.25 * tb) - (5 * usia) - 161
-                
-                pal_dict = {
-                    "Sangat Ringan (Duduk bekerja/belajar, hampir tidak pernah olahraga)": 1.2,
-                    "Ringan (Aktivitas sehari-hari + Olahraga ringan 1-3 hari/minggu)": 1.375,
-                    "Sedang (Aktivitas cukup padat + Olahraga kardio/gym 3-5 hari/minggu)": 1.55,
-                    "Berat (Pekerjaan fisik/Olahraga berat 6-7 hari/minggu)": 1.725,
-                    "Sangat Berat (Atlet profesional atau pekerjaan fisik sangat berat setiap hari)": 1.9
-                }
-                tdee = bmr * pal_dict[aktivitas]
+                pal_map = {"Sangat Ringan (Duduk bekerja/belajar, hampir tidak pernah olahraga)": 1.2, "Ringan (Aktivitas sehari-hari + Olahraga ringan 1-3 hari/minggu)": 1.375, "Sedang (Aktivitas cukup padat + Olahraga kardio/gym 3-5 hari/minggu)": 1.55, "Berat (Pekerjaan fisik/Olahraga berat 6-7 hari/minggu)": 1.725, "Sangat Berat (Atlet profesional atau pekerjaan fisik sangat berat setiap hari)": 1.9}
+                tdee = bmr * pal_map[aktivitas]
                 target_kalori = tdee
                 if "Defisit" in goal: target_kalori -= 500
                 elif "Surplus" in goal: target_kalori += 500
@@ -190,7 +176,7 @@ if st.session_state.hasil_rekomendasi:
         
         st.success(f"🏆 Rekomendasi: Paket {top['Id Paket']} (Skor Kemiripan: {top['Score']:.4f})")
         st.write("### 🍱 Porsi Bahan Makanan")
-        # TABEL TANPA INDEX
+        # TABEL DIPANGGIL NORMAL
         st.table(format_menu_ke_tabel(top['Sarapan'], top['Makan Siang'], top['Makan Malam']))
         
         st.write("### 👨‍🍳 Deskripsi & Cara Penyajian")
