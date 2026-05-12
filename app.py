@@ -4,16 +4,38 @@ import numpy as np
 import os
 import re
 import base64
+import streamlit.components.v1 as components
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics.pairwise import cosine_similarity
 
 # ==========================================
-# 1. KONFIGURASI TAMPILAN HALAMAN & CSS
+# 1. KONFIGURASI TAMPILAN (CSS & RESPONSIVE)
 # ==========================================
 st.set_page_config(page_title="Sistem Rekomendasi Diet", page_icon="🥗", layout="wide")
 
 st.markdown("""
     <style>
+    /* Menambahkan jarak agar konten tidak sesak/nyundul di HP */
+    .block-container {
+        padding-top: 3.5rem !important;
+        padding-bottom: 2rem !important;
+    }
+
+    /* Jarak tambahan khusus sidebar agar inputan tidak tertutup jam HP */
+    [data-testid="stSidebar"] > div:first-child {
+        padding-top: 2rem !important;
+    }
+
+    /* Penyesuaian khusus tampilan Mobile/HP */
+    @media (max-width: 640px) {
+        .block-container {
+            padding-left: 1rem !important;
+            padding-right: 1rem !important;
+            padding-top: 2.5rem !important;
+        }
+        h1 { font-size: 22px !important; }
+    }
+
     div[data-testid="InputInstructions"] { display: none !important; }
     
     [data-testid="stMetric"] {
@@ -29,13 +51,9 @@ st.markdown("""
         font-weight: 600 !important;
         color: #00d4ff !important; 
     }
-    [data-testid="stMetricValue"] > div {
-        font-size: 20px !important;
-    }
-    .stTable {
-        background-color: rgba(255, 255, 255, 0.02);
-        border-radius: 10px;
-    }
+    
+    .stTable { background-color: rgba(255, 255, 255, 0.02); border-radius: 10px; }
+
     .desc-box {
         background-color: rgba(255, 255, 255, 0.05); 
         border-left: 5px solid #00d4ff; 
@@ -50,38 +68,13 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # ==========================================
-# HEADER: GAMBAR BULAT & TAGLINE TENGAH
+# 2. FUNGSI PEMBANTU (GAMBAR & TABEL)
 # ==========================================
 def get_base64_of_bin_file(bin_file):
     with open(bin_file, 'rb') as f:
         data = f.read()
     return base64.b64encode(data).decode()
 
-img_file = 'Macronutrients.png' 
-
-if os.path.exists(img_file):
-    img_base64 = get_base64_of_bin_file(img_file)
-    st.markdown(f"""
-        <div style="display: flex; align-items: center; justify-content: center; gap: 20px; border-bottom: 2px solid rgba(255,255,255,0.1); padding-bottom: 20px; margin-bottom: 20px;">
-            <img src="data:image/png;base64,{img_base64}" 
-                 style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 3px solid rgba(255,255,255,0.2); box-shadow: 0 4px 8px rgba(0,0,0,0.3);">
-            <h1 style="margin: 0; padding: 0; border: none; font-size: 32px; font-weight: 800; letter-spacing: -1px;">Sistem Rekomendasi Paket Menu Harian Sehat</h1>
-        </div>
-        """, unsafe_allow_html=True)
-else:
-    st.title("🥗 Sistem Rekomendasi Paket Menu Harian Sehat")
-
-st.markdown("""
-    <div style="text-align: center; font-style: italic; font-size: 16px; color: #FFFFFF; margin-top: -10px; margin-bottom: 5px;">
-        "Wujudkan gaya hidup sehat dengan panduan pola makan harian bergizi yang disesuaikan khusus untuk kebutuhan tubuhmu!"
-    </div>
-    """, unsafe_allow_html=True)
-
-st.markdown("---")
-
-# ==========================================
-# 2. FUNGSI PEMBANTU (TABEL GRAM)
-# ==========================================
 def format_menu_ke_tabel(sarapan, siang, malam):
     data_tabel = []
     waktu_makan = [("🌅 Sarapan", sarapan), ("☀️ Makan Siang", siang), ("🌙 Makan Malam", malam)]
@@ -99,15 +92,28 @@ def format_menu_ke_tabel(sarapan, siang, malam):
         })
     return pd.DataFrame(data_tabel)
 
+# HEADER LOGO
+img_file = 'Macronutrients.png' 
+if os.path.exists(img_file):
+    img_base64 = get_base64_of_bin_file(img_file)
+    st.markdown(f"""
+        <div style="display: flex; align-items: center; justify-content: center; gap: 20px; border-bottom: 2px solid rgba(255,255,255,0.1); padding-bottom: 20px; margin-bottom: 20px;">
+            <img src="data:image/png;base64,{img_base64}" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 3px solid rgba(255,255,255,0.2);">
+            <h1 style="margin: 0; padding: 0; border: none; font-weight: 800; letter-spacing: -1px;">Sistem Rekomendasi Paket Menu Harian Sehat</h1>
+        </div>
+        """, unsafe_allow_html=True)
+else:
+    st.title("🥗 Sistem Rekomendasi Paket Menu Harian Sehat")
+
 # ==========================================
-# 3. FORM INPUT DATA PENGGUNA (SIDEBAR)
+# 3. SIDEBAR FORM DATA DIRI
 # ==========================================
 with st.sidebar:
     st.header("📝 Form Data Diri")
     with st.form("form_pengguna"):
         nama = st.text_input("Nama Lengkap")
         gender = st.selectbox("Jenis Kelamin", ["Laki-laki", "Perempuan"])
-        usia = st.number_input("Usia (Tahun)", min_value=1, value=None, placeholder="Ketik Usia Anda...", step=1)
+        usia = st.number_input("Usia (Tahun)", min_value=1, value=None, placeholder="Ketik Usia...", step=1)
         bb = st.number_input("Berat Badan (kg)", min_value=10, value=None, placeholder="Ketik BB...", step=1) 
         tb = st.number_input("Tinggi Badan (cm)", min_value=50, value=None, placeholder="Ketik TB...", step=1)
         aktivitas = st.selectbox("Tingkat Aktivitas", [
@@ -125,8 +131,20 @@ with st.sidebar:
         alergi = st.selectbox("Riwayat Alergi Makanan", ["Tidak Ada", "Ada Alergi"])
         submitted = st.form_submit_button("Cari Rekomendasi 🚀")
 
+        if submitted:
+            # SCRIPT UNTUK TUTUP SIDEBAR OTOMATIS DI HP
+            components.html(
+                """
+                <script>
+                var v = window.parent.document.querySelector('button[kind="headerNoPadding"]');
+                if (v) { v.click(); }
+                </script>
+                """,
+                height=0,
+            )
+
 # ==========================================
-# 4. PROSES PERHITUNGAN
+# 4. LOGIKA PERHITUNGAN & REKOMENDASI
 # ==========================================
 if submitted:
     if not nama or bb is None or tb is None or usia is None:
@@ -188,12 +206,10 @@ if submitted:
             
             st.success(f"🏆 Rekomendasi Terbaik: Paket {top_1['Id Paket']} (Skor: {top_1['Score']:.4f})")
             
-            # --- TABEL GRAMASI (HANYA MUNCUL 1 KALI) ---
             st.write("### 🍱 Porsi Bahan Makanan")
             df_tabel = format_menu_ke_tabel(top_1['Sarapan'], top_1['Makan Siang'], top_1['Makan Malam'])
             st.table(df_tabel.assign(hack='').set_index('hack'))
             
-            # --- DESKRIPSI MASAKAN (HANYA MUNCUL 1 KALI) ---
             st.write("### 👨‍🍳 Deskripsi & Cara Penyajian")
             desc_text = str(top_1['Detail Makanan'])
             desc_text = desc_text.replace("Sarapan:", "<b>🌅 Sarapan:</b><br>")
@@ -202,7 +218,7 @@ if submitted:
             
             st.markdown(f'<div class="desc-box">{desc_text}</div>', unsafe_allow_html=True)
             
-            st.info(f"💡 Paket ini mengandung **{top_1['Total Kalori']} Kkal**. Selisih kalori dengan target Anda adalah **{abs(top_1['Total Kalori'] - target_kalori):.1f} Kkal**.")
+            st.info(f"💡 Paket ini mengandung **{top_1['Total Kalori']} Kkal**. Selisih kalori: **{abs(top_1['Total Kalori'] - target_kalori):.1f} Kkal**.")
         else:
             st.error("File 'datasetpaketmenu.csv' tidak ditemukan.")
 else:
