@@ -204,7 +204,7 @@ if submitted:
             
             st.success(f"🏆 Rekomendasi Terbaik: Paket {top_1['Id Paket']} (Kategori: {top_1['Paket']}) (Skor Kemiripan: {top_1['Score']:.4f})")
             
-            st.write("### 🍱 Rincian Menu Harian")
+            st.write("### 🍱 Rincian Menu Makanan Paket Harian")
             
             # --- MENAMPILKAN TABEL MENU YANG RAPI ---
             df_tabel_rapi = format_menu_ke_tabel(top_1['Sarapan'], top_1['Makan Siang'], top_1['Makan Malam'])
