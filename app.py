@@ -15,6 +15,7 @@ st.set_page_config(page_title="Sistem Rekomendasi Diet", page_icon="🥗", layou
 
 st.markdown("""
     <style>
+    /* HAPUS TULISAN PRESS ENTER */
     [data-testid="InputInstructions"] { display: none !important; }
     
     .block-container {
@@ -22,6 +23,7 @@ st.markdown("""
         padding-bottom: 5rem !important;
     }
 
+    /* KOTAK METRIC */
     [data-testid="stMetric"] {
         background-color: rgba(0, 212, 255, 0.05); 
         border: 1px solid rgba(0, 212, 255, 0.2);
@@ -36,6 +38,7 @@ st.markdown("""
         color: #00b4d8 !important; 
     }
 
+    /* KOTAK DESKRIPSI ADAPTIF */
     .desc-box {
         background-color: rgba(0, 212, 255, 0.08); 
         border-left: 5px solid #00d4ff; 
@@ -47,10 +50,6 @@ st.markdown("""
         line-height: 1.7;
         border: 1px solid rgba(0, 212, 255, 0.1);
     }
-
-    /* CSS HAPUS KOLOM INDEX TANPA HAPUS ISI */
-    table th:first-child { display: none !important; }
-    table td:first-child { display: none !important; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -77,6 +76,7 @@ def format_menu_ke_tabel(sarapan, siang, malam):
             "Bahan Makanan": ", ".join(nama_list),
             "Porsi (Gram)": ", ".join(porsi_list)
         })
+    # Kembalikan DataFrame biasa
     return pd.DataFrame(data_tabel)
 
 # HEADER
@@ -111,6 +111,7 @@ with st.sidebar:
         usia = st.number_input("Usia (Tahun)", min_value=1, value=None, placeholder="Input Usia...", step=1)
         bb = st.number_input("Berat Badan (kg)", min_value=10, value=None, placeholder="Input BB...", step=1) 
         tb = st.number_input("Tinggi Badan (cm)", min_value=50, value=None, placeholder="Input TB...", step=1)
+        
         aktivitas = st.selectbox("Tingkat Aktivitas", [
             "Sangat Ringan (Duduk bekerja/belajar, hampir tidak pernah olahraga)",
             "Ringan (Aktivitas sehari-hari + Olahraga ringan 1-3 hari/minggu)",
@@ -130,8 +131,15 @@ with st.sidebar:
             else:
                 if gender == "Laki-laki": bmr = (10 * bb) + (6.25 * tb) - (5 * usia) + 5
                 else: bmr = (10 * bb) + (6.25 * tb) - (5 * usia) - 161
-                pal_map = {"Sangat Ringan (Duduk bekerja/belajar, hampir tidak pernah olahraga)": 1.2, "Ringan (Aktivitas sehari-hari + Olahraga ringan 1-3 hari/minggu)": 1.375, "Sedang (Aktivitas cukup padat + Olahraga kardio/gym 3-5 hari/minggu)": 1.55, "Berat (Pekerjaan fisik/Olahraga berat 6-7 hari/minggu)": 1.725, "Sangat Berat (Atlet profesional atau pekerjaan fisik sangat berat setiap hari)": 1.9}
-                tdee = bmr * pal_map[aktivitas]
+                
+                pal_dict = {
+                    "Sangat Ringan (Duduk bekerja/belajar, hampir tidak pernah olahraga)": 1.2,
+                    "Ringan (Aktivitas sehari-hari + Olahraga ringan 1-3 hari/minggu)": 1.375,
+                    "Sedang (Aktivitas cukup padat + Olahraga kardio/gym 3-5 hari/minggu)": 1.55,
+                    "Berat (Pekerjaan fisik/Olahraga berat 6-7 hari/minggu)": 1.725,
+                    "Sangat Berat (Atlet profesional atau pekerjaan fisik sangat berat setiap hari)": 1.9
+                }
+                tdee = bmr * pal_dict[aktivitas]
                 target_kalori = tdee
                 if "Defisit" in goal: target_kalori -= 500
                 elif "Surplus" in goal: target_kalori += 500
@@ -175,9 +183,11 @@ if st.session_state.hasil_rekomendasi:
         top = df_h.sort_values('Score', ascending=False).iloc[0]
         
         st.success(f"🏆 Rekomendasi: Paket {top['Id Paket']} (Skor Kemiripan: {top['Score']:.4f})")
+        
         st.write("### 🍱 Porsi Bahan Makanan")
-        # TABEL DIPANGGIL NORMAL
-        st.table(format_menu_ke_tabel(top['Sarapan'], top['Makan Siang'], top['Makan Malam']))
+        # PERBAIKAN DISINI: Menghilangkan index agar kolom angka/hack tidak muncul
+        df_final = format_menu_ke_tabel(top['Sarapan'], top['Makan Siang'], top['Makan Malam'])
+        st.dataframe(df_final, use_container_width=True, hide_index=True)
         
         st.write("### 👨‍🍳 Deskripsi & Cara Penyajian")
         desc = str(top['Detail Makanan']).replace("Sarapan:", "<b>🌅 Sarapan:</b><br>").replace("Siang:", "<br><br><b>☀️ Makan Siang:</b><br>").replace("Malam:", "<br><br><b>🌙 Makan Malam:</b><br>")
