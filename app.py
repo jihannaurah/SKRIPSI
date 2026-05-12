@@ -4,26 +4,30 @@ import numpy as np
 import os
 import re
 import base64
+import time
 import streamlit.components.v1 as components
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics.pairwise import cosine_similarity
 
 # ==========================================
-# 1. KONFIGURASI TAMPILAN & CSS
+# 1. KONFIGURASI TAMPILAN & CSS (ADAPTIVE & CLEAN)
 # ==========================================
 st.set_page_config(page_title="Sistem Rekomendasi Diet", page_icon="🥗", layout="wide")
 
 st.markdown("""
     <style>
-    /* HAPUS TULISAN PRESS ENTER */
-    [data-testid="InputInstructions"] { display: none !important; }
+    /* HAPUS TULISAN PRESS ENTER & INSTRUKSI INPUT */
+    [data-testid="InputInstructions"] { 
+        display: none !important; 
+        visibility: hidden !important;
+    }
     
     .block-container {
         padding-top: 3.5rem !important;
         padding-bottom: 5rem !important;
     }
 
-    /* KOTAK METRIC */
+    /* KOTAK METRIC ADAPTIF */
     [data-testid="stMetric"] {
         background-color: rgba(0, 212, 255, 0.05); 
         border: 1px solid rgba(0, 212, 255, 0.2);
@@ -38,7 +42,7 @@ st.markdown("""
         color: #00b4d8 !important; 
     }
 
-    /* KOTAK DESKRIPSI ADAPTIF */
+    /* KOTAK DESKRIPSI (TANPA WARNA TEKS STATIS AGAR AMAN DI MODE GELAP) */
     .desc-box {
         background-color: rgba(0, 212, 255, 0.08); 
         border-left: 5px solid #00d4ff; 
@@ -49,6 +53,11 @@ st.markdown("""
         font-size: 16px;
         line-height: 1.7;
         border: 1px solid rgba(0, 212, 255, 0.1);
+    }
+
+    /* RESPONSIVE JUDUL */
+    @media (max-width: 640px) {
+        h1 { font-size: 20px !important; }
     }
     </style>
     """, unsafe_allow_html=True)
@@ -78,7 +87,7 @@ def format_menu_ke_tabel(sarapan, siang, malam):
         })
     return pd.DataFrame(data_tabel)
 
-# HEADER
+# HEADER: LOGO & JUDUL
 img_file = 'Macronutrients.png' 
 if os.path.exists(img_file):
     img_base64 = get_base64_of_bin_file(img_file)
@@ -89,6 +98,7 @@ if os.path.exists(img_file):
         </div>
         """, unsafe_allow_html=True)
 
+# TAGLINE
 st.markdown("""
     <div style="text-align: center; font-style: italic; font-size: 16px; margin-top: -10px; margin-bottom: 10px;">
         "Wujudkan gaya hidup sehat dengan panduan pola makan harian bergizi yang disesuaikan khusus untuk kebutuhan tubuhmu!"
@@ -97,7 +107,7 @@ st.markdown("""
 st.markdown("---")
 
 # ==========================================
-# 3. SIDEBAR & SESSION STATE
+# 3. SIDEBAR & LOGIKA INPUT (SESSION STATE)
 # ==========================================
 if 'hasil_rekomendasi' not in st.session_state:
     st.session_state.hasil_rekomendasi = None
@@ -107,6 +117,7 @@ with st.sidebar:
     with st.form("form_pengguna"):
         nama = st.text_input("Nama Lengkap")
         gender = st.selectbox("Jenis Kelamin", ["Laki-laki", "Perempuan"])
+        # INPUT KOSONG (None)
         usia = st.number_input("Usia (Tahun)", min_value=1, value=None, placeholder="Input Usia...", step=1)
         bb = st.number_input("Berat Badan (kg)", min_value=10, value=None, placeholder="Input BB...", step=1) 
         tb = st.number_input("Tinggi Badan (cm)", min_value=50, value=None, placeholder="Input TB...", step=1)
@@ -128,31 +139,37 @@ with st.sidebar:
             elif alergi != "Tidak Ada":
                 st.error("🛑 Sistem tidak memproses pengguna dengan alergi.")
             else:
+                # PERHITUNGAN
                 if gender == "Laki-laki": bmr = (10 * bb) + (6.25 * tb) - (5 * usia) + 5
                 else: bmr = (10 * bb) + (6.25 * tb) - (5 * usia) - 161
                 
-                pal_dict = {
-                    "Sangat Ringan (Duduk bekerja/belajar, hampir tidak pernah olahraga)": 1.2,
-                    "Ringan (Aktivitas sehari-hari + Olahraga ringan 1-3 hari/minggu)": 1.375,
-                    "Sedang (Aktivitas cukup padat + Olahraga kardio/gym 3-5 hari/minggu)": 1.55,
-                    "Berat (Pekerjaan fisik/Olahraga berat 6-7 hari/minggu)": 1.725,
-                    "Sangat Berat (Atlet profesional atau pekerjaan fisik sangat berat setiap hari)": 1.9
-                }
-                tdee = bmr * pal_dict[aktivitas]
+                pal_map = {"Sangat Ringan (Duduk bekerja/belajar, hampir tidak pernah olahraga)": 1.2, "Ringan (Aktivitas sehari-hari + Olahraga ringan 1-3 hari/minggu)": 1.375, "Sedang (Aktivitas cukup padat + Olahraga kardio/gym 3-5 hari/minggu)": 1.55, "Berat (Pekerjaan fisik/Olahraga berat 6-7 hari/minggu)": 1.725, "Sangat Berat (Atlet profesional atau pekerjaan fisik sangat berat setiap hari)": 1.9}
+                tdee = bmr * pal_map[aktivitas]
                 target_kalori = tdee
                 if "Defisit" in goal: target_kalori -= 500
                 elif "Surplus" in goal: target_kalori += 500
                 
+                # SIMPAN KE STATE
                 st.session_state.hasil_rekomendasi = {
                     "nama": nama, "target_kalori": target_kalori,
                     "protein": (target_kalori * 0.2) / 4,
                     "karbo": (target_kalori * 0.5) / 4,
                     "lemak": (target_kalori * 0.3) / 9, "goal": goal
                 }
-                components.html("<script>window.parent.document.querySelector('button[kind=\"headerNoPadding\"]').click();</script>", height=0)
+                
+                # AUTO-CLOSE SIDEBAR ANTI-MACET (DENGAN TIMESTAMP)
+                components.html(
+                    f"""
+                    <script>
+                    var v = window.parent.document.querySelector('button[kind="headerNoPadding"]');
+                    if (v) {{ v.click(); }}
+                    // Timestamp: {time.time()}
+                    </script>
+                    """, height=0,
+                )
 
 # ==========================================
-# 4. DISPLAY HASIL
+# 4. DISPLAY HASIL (OUTPUT UTAMA)
 # ==========================================
 if st.session_state.hasil_rekomendasi:
     res = st.session_state.hasil_rekomendasi
@@ -169,6 +186,8 @@ if st.session_state.hasil_rekomendasi:
     if os.path.exists(file_paket):
         df_paket = pd.read_csv(file_paket, sep=';')
         df_paket.columns = df_paket.columns.str.strip()
+        
+        # COSINE SIMILARITY
         scaler = MinMaxScaler()
         fitur = ['Total Kalori', 'Total Protein', 'Total Karbohidrat', 'Total Lemak']
         vektor_db = scaler.fit_transform(df_paket[fitur])
@@ -181,10 +200,11 @@ if st.session_state.hasil_rekomendasi:
         
         top = df_h.sort_values('Score', ascending=False).iloc[0]
         
-        # PERUBAHAN ADA DI BARIS INI: MENAMBAHKAN top['Paket']
+        # MENAMPILKAN ID PAKET & KATEGORI (MISAL: P-008 - D8)
         st.success(f"🏆 Rekomendasi: Paket {top['Id Paket']} - {top['Paket']} (Skor Kemiripan: {top['Score']:.4f})")
         
         st.write("### 🍱 Porsi Bahan Makanan")
+        # TABEL 3 KOLOM TANPA INDEX
         df_final = format_menu_ke_tabel(top['Sarapan'], top['Makan Siang'], top['Makan Malam'])
         st.dataframe(df_final, use_container_width=True, hide_index=True)
         
