@@ -42,6 +42,9 @@ st.markdown("""
         padding: 20px; 
         border-radius: 10px; 
         margin-top: 10px;
+        font-size: 16px;
+        line-height: 1.6;
+        color: #E0E0E0;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -65,6 +68,8 @@ if os.path.exists(img_file):
             <h1 style="margin: 0; padding: 0; border: none; font-size: 32px; font-weight: 800; letter-spacing: -1px;">Sistem Rekomendasi Paket Menu Harian Sehat</h1>
         </div>
         """, unsafe_allow_html=True)
+else:
+    st.title("🥗 Sistem Rekomendasi Paket Menu Harian Sehat")
 
 st.markdown("""
     <div style="text-align: center; font-style: italic; font-size: 16px; color: #FFFFFF; margin-top: -10px; margin-bottom: 5px;">
@@ -89,8 +94,8 @@ def format_menu_ke_tabel(sarapan, siang, malam):
             nama_list.append(re.sub(r'\(.*?\)', '', item).strip())
         data_tabel.append({
             "Waktu Makan": waktu,
-            "Bahan Makanan": " & ".join(nama_list),
-            "Porsi (Gram)": " & ".join(porsi_list)
+            "Bahan Makanan": ", ".join(nama_list),
+            "Porsi (Gram)": ", ".join(porsi_list)
         })
     return pd.DataFrame(data_tabel)
 
@@ -161,7 +166,6 @@ if submitted:
         
         st.markdown("---")
 
-        # Recommendation Logic
         file_paket = 'datasetpaketmenu.csv' 
         if os.path.exists(file_paket):
             df_paket = pd.read_csv(file_paket, sep=';')
@@ -184,17 +188,22 @@ if submitted:
             
             st.success(f"🏆 Rekomendasi Terbaik: Paket {top_1['Id Paket']} (Skor: {top_1['Score']:.4f})")
             
-            # --- TABEL GRAMASI ---
+            # --- TABEL GRAMASI (HANYA MUNCUL 1 KALI) ---
             st.write("### 🍱 Porsi Bahan Makanan")
             df_tabel = format_menu_ke_tabel(top_1['Sarapan'], top_1['Makan Siang'], top_1['Makan Malam'])
             st.table(df_tabel.assign(hack='').set_index('hack'))
             
-            # --- DESKRIPSI MASAKAN (DETAIL MAKANAN) ---
+            # --- DESKRIPSI MASAKAN (HANYA MUNCUL 1 KALI) ---
             st.write("### 👨‍🍳 Deskripsi & Cara Penyajian")
-            details = top_1['Detail Makanan'].split(';')
-            for d in details:
-                st.markdown(f'<div class="desc-box">{d.strip()}</div>', unsafe_allow_html=True)
+            desc_text = str(top_1['Detail Makanan'])
+            desc_text = desc_text.replace("Sarapan:", "<b>🌅 Sarapan:</b><br>")
+            desc_text = desc_text.replace("Siang:", "<br><br><b>☀️ Makan Siang:</b><br>")
+            desc_text = desc_text.replace("Malam:", "<br><br><b>🌙 Makan Malam:</b><br>")
             
-            st.info(f"💡 Paket ini mengandung **{top_1['Total Kalori']} Kkal**. Selisih: **{abs(top_1['Total Kalori'] - target_kalori):.1f} Kkal**.")
+            st.markdown(f'<div class="desc-box">{desc_text}</div>', unsafe_allow_html=True)
+            
+            st.info(f"💡 Paket ini mengandung **{top_1['Total Kalori']} Kkal**. Selisih kalori dengan target Anda adalah **{abs(top_1['Total Kalori'] - target_kalori):.1f} Kkal**.")
+        else:
+            st.error("File 'datasetpaketmenu.csv' tidak ditemukan.")
 else:
     st.info("👈 Silakan isi data diri Anda di sidebar.")
