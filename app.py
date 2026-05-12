@@ -9,60 +9,61 @@ from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics.pairwise import cosine_similarity
 
 # ==========================================
-# 1. KONFIGURASI TAMPILAN (CSS & RESPONSIVE)
+# 1. KONFIGURASI TAMPILAN & CSS (FIX FONT & SPACING)
 # ==========================================
 st.set_page_config(page_title="Sistem Rekomendasi Diet", page_icon="🥗", layout="wide")
 
 st.markdown("""
     <style>
-    /* Menambahkan jarak agar konten tidak sesak/nyundul di HP */
+    /* Jarak konten agar tidak nyundul di HP */
     .block-container {
         padding-top: 3.5rem !important;
-        padding-bottom: 2rem !important;
+        padding-bottom: 5rem !important;
     }
 
-    /* Jarak tambahan khusus sidebar agar inputan tidak tertutup jam HP */
+    /* Penyesuaian Font agar tajam di Mode Terang/Gelap */
+    [data-testid="stHeader"] { background-color: rgba(0,0,0,0); }
+    
+    /* Kotak Metric */
+    [data-testid="stMetric"] {
+        background-color: rgba(255, 255, 255, 0.05); 
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 15px 5px;
+        border-radius: 15px;
+        text-align: center;
+    }
+    
+    /* Judul Metric agar kontras */
+    [data-testid="stMetricLabel"] p {
+        font-size: 14px !important;
+        font-weight: 700 !important;
+        color: #00b4d8 !important; 
+    }
+
+    /* Kotak Deskripsi Penyajian (FIX: Font Gelap & Jarak Bawah) */
+    .desc-box {
+        background-color: rgba(0, 212, 255, 0.07); 
+        border-left: 5px solid #00d4ff; 
+        padding: 20px; 
+        border-radius: 10px; 
+        margin-top: 15px;
+        margin-bottom: 30px; /* Memberikan jarak ke kotak info di bawahnya */
+        font-size: 16px;
+        line-height: 1.7;
+        color: #1E1E1E !important; /* Warna teks gelap solid agar jelas di Mode Terang */
+        font-weight: 500;
+    }
+
+    /* Sidebar Jarak Atas */
     [data-testid="stSidebar"] > div:first-child {
         padding-top: 2rem !important;
     }
 
-    /* Penyesuaian khusus tampilan Mobile/HP */
+    /* Responsif Mobile */
     @media (max-width: 640px) {
-        .block-container {
-            padding-left: 1rem !important;
-            padding-right: 1rem !important;
-            padding-top: 2.5rem !important;
-        }
-        h1 { font-size: 22px !important; }
-    }
-
-    div[data-testid="InputInstructions"] { display: none !important; }
-    
-    [data-testid="stMetric"] {
-        background-color: rgba(255, 255, 255, 0.05); 
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        padding: 10px 5px;
-        border-radius: 15px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        text-align: center;
-    }
-    [data-testid="stMetricLabel"] p {
-        font-size: 14px !important;
-        font-weight: 600 !important;
-        color: #00d4ff !important; 
-    }
-    
-    .stTable { background-color: rgba(255, 255, 255, 0.02); border-radius: 10px; }
-
-    .desc-box {
-        background-color: rgba(255, 255, 255, 0.05); 
-        border-left: 5px solid #00d4ff; 
-        padding: 20px; 
-        border-radius: 10px; 
-        margin-top: 10px;
-        font-size: 16px;
-        line-height: 1.6;
-        color: #E0E0E0;
+        .block-container { padding-top: 2.5rem !important; }
+        h1 { font-size: 20px !important; }
+        .desc-box { font-size: 15px; padding: 15px; }
     }
     </style>
     """, unsafe_allow_html=True)
@@ -92,30 +93,30 @@ def format_menu_ke_tabel(sarapan, siang, malam):
         })
     return pd.DataFrame(data_tabel)
 
-# HEADER LOGO
+# HEADER DENGAN LOGO
 img_file = 'Macronutrients.png' 
 if os.path.exists(img_file):
     img_base64 = get_base64_of_bin_file(img_file)
     st.markdown(f"""
-        <div style="display: flex; align-items: center; justify-content: center; gap: 20px; border-bottom: 2px solid rgba(255,255,255,0.1); padding-bottom: 20px; margin-bottom: 20px;">
-            <img src="data:image/png;base64,{img_base64}" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 3px solid rgba(255,255,255,0.2);">
-            <h1 style="margin: 0; padding: 0; border: none; font-weight: 800; letter-spacing: -1px;">Sistem Rekomendasi Paket Menu Harian Sehat</h1>
+        <div style="display: flex; align-items: center; justify-content: center; gap: 15px; border-bottom: 2px solid rgba(255,255,255,0.1); padding-bottom: 20px; margin-bottom: 20px;">
+            <img src="data:image/png;base64,{img_base64}" style="width: 70px; height: 70px; border-radius: 50%; border: 2px solid #00d4ff;">
+            <h1 style="margin: 0; padding: 0; font-size: 28px; font-weight: 800;">Sistem Rekomendasi Paket Menu Harian Sehat</h1>
         </div>
         """, unsafe_allow_html=True)
 else:
     st.title("🥗 Sistem Rekomendasi Paket Menu Harian Sehat")
 
 # ==========================================
-# 3. SIDEBAR FORM DATA DIRI
+# 3. SIDEBAR (AUTO-CLOSE ENABLED)
 # ==========================================
 with st.sidebar:
     st.header("📝 Form Data Diri")
     with st.form("form_pengguna"):
         nama = st.text_input("Nama Lengkap")
         gender = st.selectbox("Jenis Kelamin", ["Laki-laki", "Perempuan"])
-        usia = st.number_input("Usia (Tahun)", min_value=1, value=None, placeholder="Ketik Usia...", step=1)
-        bb = st.number_input("Berat Badan (kg)", min_value=10, value=None, placeholder="Ketik BB...", step=1) 
-        tb = st.number_input("Tinggi Badan (cm)", min_value=50, value=None, placeholder="Ketik TB...", step=1)
+        usia = st.number_input("Usia (Tahun)", min_value=1, value=None, placeholder="Input Usia...", step=1)
+        bb = st.number_input("Berat Badan (kg)", min_value=10, value=None, placeholder="Input BB...", step=1) 
+        tb = st.number_input("Tinggi Badan (cm)", min_value=50, value=None, placeholder="Input TB...", step=1)
         aktivitas = st.selectbox("Tingkat Aktivitas", [
             "Sangat Ringan (Duduk bekerja/belajar, hampir tidak pernah olahraga)",
             "Ringan (Aktivitas sehari-hari + Olahraga ringan 1-3 hari/minggu)",
@@ -132,7 +133,7 @@ with st.sidebar:
         submitted = st.form_submit_button("Cari Rekomendasi 🚀")
 
         if submitted:
-            # SCRIPT UNTUK TUTUP SIDEBAR OTOMATIS DI HP
+            # SCRIPT MAGIC: Sidebar otomatis menutup saat klik tombol di HP
             components.html(
                 """
                 <script>
@@ -144,17 +145,17 @@ with st.sidebar:
             )
 
 # ==========================================
-# 4. LOGIKA PERHITUNGAN & REKOMENDASI
+# 4. LOGIKA PERHITUNGAN & OUTPUT
 # ==========================================
 if submitted:
     if not nama or bb is None or tb is None or usia is None:
         st.warning("⚠️ Mohon lengkapi data diri Anda!")
     elif usia < 18 or usia > 40:
-        st.error(f"🛑 Maaf, sistem hanya memproses usia 18-40 tahun.")
+        st.error("🛑 Sistem hanya memproses usia 18-40 tahun.")
     elif alergi != "Tidak Ada":
-        st.error("🛑 Maaf, sistem tidak memproses pengguna dengan alergi.")
+        st.error("🛑 Sistem tidak memproses pengguna dengan alergi.")
     else:
-        # Rumus BMR & TDEE
+        # Hitung BMR & TDEE
         if gender == "Laki-laki": bmr = (10 * bb) + (6.25 * tb) - (5 * usia) + 5
         else: bmr = (10 * bb) + (6.25 * tb) - (5 * usia) - 161
             
@@ -175,12 +176,12 @@ if submitted:
         t_karbo = (target_kalori * 0.50) / 4
         t_lemak = (target_kalori * 0.30) / 9
 
-        st.subheader(f"📊 Hasil Analisis Kebutuhan Energi: {nama.upper()}")
-        col_m1, col_m2, col_m3, col_m4 = st.columns(4)
-        with col_m1: st.metric("Target Kalori", f"{target_kalori:.1f} (Kkal)")
-        with col_m2: st.metric("Protein", f"{t_protein:.1f} (g)")
-        with col_m3: st.metric("Karbohidrat", f"{t_karbo:.1f} (g)")
-        with col_m4: st.metric("Lemak", f"{t_lemak:.1f} (g)")
+        st.subheader(f"📊 Analisis Energi: {nama.upper()}")
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("Target Kalori", f"{target_kalori:.1f} Kkal")
+        c2.metric("Protein", f"{t_protein:.1f} g")
+        c3.metric("Karbohidrat", f"{t_karbo:.1f} g")
+        c4.metric("Lemak", f"{t_lemak:.1f} g")
         
         st.markdown("---")
 
@@ -204,22 +205,25 @@ if submitted:
             
             top_1 = df_h.sort_values('Score', ascending=False).iloc[0]
             
-            st.success(f"🏆 Rekomendasi Terbaik: Paket {top_1['Id Paket']} (Skor: {top_1['Score']:.4f})")
+            st.success(f"🏆 Rekomendasi: Paket {top_1['Id Paket']} (Skor: {top_1['Score']:.4f})")
             
+            # --- OUTPUT TABEL ---
             st.write("### 🍱 Porsi Bahan Makanan")
-            df_tabel = format_menu_ke_tabel(top_1['Sarapan'], top_1['Makan Siang'], top_1['Makan Malam'])
-            st.table(df_tabel.assign(hack='').set_index('hack'))
+            df_res = format_menu_ke_tabel(top_1['Sarapan'], top_1['Makan Siang'], top_1['Makan Malam'])
+            st.table(df_res.assign(hack='').set_index('hack'))
             
+            # --- OUTPUT DESKRIPSI ---
             st.write("### 👨‍🍳 Deskripsi & Cara Penyajian")
-            desc_text = str(top_1['Detail Makanan'])
-            desc_text = desc_text.replace("Sarapan:", "<b>🌅 Sarapan:</b><br>")
-            desc_text = desc_text.replace("Siang:", "<br><br><b>☀️ Makan Siang:</b><br>")
-            desc_text = desc_text.replace("Malam:", "<br><br><b>🌙 Makan Malam:</b><br>")
+            desc = str(top_1['Detail Makanan'])
+            desc = desc.replace("Sarapan:", "<b>🌅 Sarapan:</b><br>")
+            desc = desc.replace("Siang:", "<br><br><b>☀️ Makan Siang:</b><br>")
+            desc = desc.replace("Malam:", "<br><br><b>🌙 Makan Malam:</b><br>")
             
-            st.markdown(f'<div class="desc-box">{desc_text}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="desc-box">{desc}</div>', unsafe_allow_html=True)
             
-            st.info(f"💡 Paket ini mengandung **{top_1['Total Kalori']} Kkal**. Selisih kalori: **{abs(top_1['Total Kalori'] - target_kalori):.1f} Kkal**.")
+            # --- OUTPUT INFO AKHIR ---
+            st.info(f"💡 Paket ini mengandung **{top_1['Total Kalori']} Kkal**. Selisih kalori dengan target Anda: **{abs(top_1['Total Kalori'] - target_kalori):.1f} Kkal**.")
         else:
-            st.error("File 'datasetpaketmenu.csv' tidak ditemukan.")
+            st.error("Dataset 'datasetpaketmenu.csv' tidak ditemukan.")
 else:
-    st.info("👈 Silakan isi data diri Anda di sidebar.")
+    st.info("👈 Masukkan data diri Anda pada menu di samping.")
