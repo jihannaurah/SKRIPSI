@@ -76,7 +76,6 @@ def format_menu_ke_tabel(sarapan, siang, malam):
             "Bahan Makanan": ", ".join(nama_list),
             "Porsi (Gram)": ", ".join(porsi_list)
         })
-    # Kembalikan DataFrame biasa
     return pd.DataFrame(data_tabel)
 
 # HEADER
@@ -182,10 +181,10 @@ if st.session_state.hasil_rekomendasi:
         
         top = df_h.sort_values('Score', ascending=False).iloc[0]
         
-        st.success(f"🏆 Rekomendasi: Paket {top['Id Paket']} (Skor Kemiripan: {top['Score']:.4f})")
+        # PERUBAHAN ADA DI BARIS INI: MENAMBAHKAN top['Paket']
+        st.success(f"🏆 Rekomendasi: Paket {top['Id Paket']} - {top['Paket']} (Skor Kemiripan: {top['Score']:.4f})")
         
         st.write("### 🍱 Porsi Bahan Makanan")
-        # PERBAIKAN DISINI: Menghilangkan index agar kolom angka/hack tidak muncul
         df_final = format_menu_ke_tabel(top['Sarapan'], top['Makan Siang'], top['Makan Malam'])
         st.dataframe(df_final, use_container_width=True, hide_index=True)
         
