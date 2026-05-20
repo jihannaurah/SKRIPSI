@@ -184,21 +184,41 @@ if st.session_state.hasil_rekomendasi:
         df_paket = pd.read_csv(file_paket, sep=';')
         df_paket.columns = df_paket.columns.str.strip()
         
+        # PROSES PERHITUNGAN COSINE SIMILARITY
         scaler = MinMaxScaler()
         fitur = ['Total Kalori', 'Total Protein', 'Total Karbohidrat', 'Total Lemak']
         vektor_db = scaler.fit_transform(df_paket[fitur])
         vektor_user = scaler.transform([[res['target_kalori'], res['protein'], res['karbo'], res['lemak']]])
         df_paket['Score'] = cosine_similarity(vektor_user, vektor_db)[0]
         
+        # TAHAP PRE-FILTERING DATASET BERDASARKAN GOAL USER
         if "Defisit" in res['goal']: df_h = df_paket[df_paket['Paket'].str.startswith('D')]
         elif "Surplus" in res['goal']: df_h = df_paket[df_paket['Paket'].str.startswith('S')]
         else: df_h = df_paket[df_paket['Paket'].str.startswith('M')]
         
+        # AMBIL REKOMENDASI UTAMA TERBAIK (ILOC 0)
         top = df_h.sort_values('Score', ascending=False).iloc[0]
         
-        st.success(f"🏆 Rekomendasi: Paket {top['Id Paket']} - {top['Paket']} (Skor Kemiripan: {top['Score']:.4f})")
+        # ======================================================================
+        # LOGIKA KLASIFIKASI RENTANG SKOR KEMIRIPAN (REVISI DOSPEM)
+        # ======================================================================
+        score_val = top['Score']
+        if score_val >= 0.80:
+            status_rekomendasi = "🔥 High Recommendation (Sangat Direkomendasikan)"
+        elif score_val >= 0.60:
+            status_rekomendasi = "👍 Moderate Recommendation (Cukup Direkomendasikan)"
+        elif score_val >= 0.50:
+            status_rekomendasi = "⚠️ Low Recommendation (Kurang Direkomendasikan)"
+        else:
+            status_rekomendasi = "🛑 Not Recommended (Tidak Direkomendasikan)"
+
+        # MENAMPILKAN ID PAKET & KATEGORI AKURASI
+        st.success(f"🏆 Rekomendasi Utama: Paket {top['Id Paket']} - {top['Paket']}")
+        st.info(f"📊 **Tingkat Akurasi Sistem:** {status_rekomendasi}  \n🎯 **Skor Kemiripan (Cosine Similarity):** {score_val:.4f}")
+        # ======================================================================
         
         st.write("### 🍱 Porsi Bahan Makanan")
+        # TABEL BERSIH TANPA ANGKA INDEKS DI KIRI
         df_final = format_menu_ke_tabel(top['Sarapan'], top['Makan Siang'], top['Makan Malam'])
         st.dataframe(df_final, use_container_width=True, hide_index=True)
         
