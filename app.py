@@ -138,13 +138,32 @@ with st.sidebar:
             elif alergi != "Tidak Ada":
                 st.error("🛑 Sistem tidak memproses pengguna dengan alergi.")
             else:
-                # PERHITUNGAN
-                if gender == "Laki-laki": bmr = (10 * bb) + (6.25 * tb) - (5 * usia) + 5
-                else: bmr = (10 * bb) + (6.25 * tb) - (5 * usia) - 161
+                # PERHITUNGAN BMR (Mifflin-St Jeor)
+                if gender == "Laki-laki": 
+                    bmr = (10 * bb) + (6.25 * tb) - (5 * usia) + 5
+                else: 
+                    bmr = (10 * bb) + (6.25 * tb) - (5 * usia) - 161
                 
-                pal_map = {"Sangat Ringan (Duduk bekerja/belajar, hampir tidak pernah olahraga)": 1.2, "Ringan (Aktivitas sehari-hari + Olahraga ringan 1-3 hari/minggu)": 1.375, "Sedang (Aktivitas cukup padat + Olahraga kardio/gym 3-5 hari/minggu)": 1.55, "Berat (Pekerjaan fisik/Olahraga berat 6-7 hari/minggu)": 1.725, "Sangat Berat (Atlet profesional atau pekerjaan fisik sangat berat setiap hari)": 1.9}
-                tdee = bmr * pal_map[aktivitas]
+                # ============================================================
+                # LOGIKA PENENTUAN MULTIPLIER YANG KETAT DAN AMAN (SINKRON COLAB)
+                # ============================================================
+                if "Sangat Berat" in aktivitas:
+                    multiplier = 1.900
+                elif "Sangat Ringan" in aktivitas:
+                    multiplier = 1.200
+                elif "Berat" in aktivitas:
+                    multiplier = 1.725
+                elif "Sedang" in aktivitas:
+                    multiplier = 1.550
+                elif "Ringan" in aktivitas:
+                    multiplier = 1.375
+                else:
+                    multiplier = 1.200
+                
+                tdee = bmr * multiplier
                 target_kalori = tdee
+                
+                # PENYESUAIAN GOAL DIET
                 if "Defisit" in goal: target_kalori -= 500
                 elif "Surplus" in goal: target_kalori += 500
                 
