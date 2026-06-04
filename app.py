@@ -163,7 +163,7 @@ if st.session_state.hasil_rekomendasi:
         # 🔥 FIX: CARA MEMANGGIL PICKLE YANG AMAN DI CLOUD
         fitur = ['Total Kalori', 'Total Protein', 'Total Karbohidrat', 'Total Lemak']
         base_path = os.path.dirname(os.path.abspath(__file__))
-        pkl_path = os.path.join(base_path, 'scaler_gizi.pkl')
+        pkl_path = os.path.join(base_path, 'scaler_gizi(1).pkl')
         
         with open(pkl_path, 'rb') as file:
             scaler = pickle.load(file)
