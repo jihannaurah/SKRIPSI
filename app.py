@@ -5,20 +5,30 @@ import os
 import re
 import base64
 import time
-import pickle
+import pickle  # <--- INI TAMBAHAN UNTUK MEMBACA FILE .PKL
 import streamlit.components.v1 as components
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics.pairwise import cosine_similarity
 
 # ==========================================
-# 1. KONFIGURASI TAMPILAN & CSS
+# 1. KONFIGURASI TAMPILAN & CSS (ADAPTIVE & CLEAN)
 # ==========================================
 st.set_page_config(page_title="Sistem Rekomendasi Diet", page_icon="🥗", layout="wide")
 
 st.markdown("""
     <style>
-    [data-testid="InputInstructions"] { display: none !important; }
-    .block-container { padding-top: 3.5rem !important; padding-bottom: 5rem !important; }
+    /* HAPUS TULISAN PRESS ENTER & INSTRUKSI INPUT */
+    [data-testid="InputInstructions"] { 
+        display: none !important; 
+        visibility: hidden !important;
+    }
+    
+    .block-container {
+        padding-top: 3.5rem !important;
+        padding-bottom: 5rem !important;
+    }
+
+    /* KOTAK METRIC ADAPTIF */
     [data-testid="stMetric"] {
         background-color: rgba(0, 212, 255, 0.05); 
         border: 1px solid rgba(0, 212, 255, 0.2);
@@ -26,11 +36,14 @@ st.markdown("""
         border-radius: 15px;
         text-align: center;
     }
+    
     [data-testid="stMetricLabel"] p {
         font-size: 14px !important;
         font-weight: 700 !important;
         color: #00b4d8 !important; 
     }
+
+    /* KOTAK DESKRIPSI (TANPA WARNA TEKS STATIS AGAR AMAN DI MODE GELAP) */
     .desc-box {
         background-color: rgba(0, 212, 255, 0.08); 
         border-left: 5px solid #00d4ff; 
@@ -41,6 +54,11 @@ st.markdown("""
         font-size: 16px;
         line-height: 1.7;
         border: 1px solid rgba(0, 212, 255, 0.1);
+    }
+
+    /* RESPONSIVE JUDUL */
+    @media (max-width: 640px) {
+        h1 { font-size: 20px !important; }
     }
     </style>
     """, unsafe_allow_html=True)
@@ -70,7 +88,7 @@ def format_menu_ke_tabel(sarapan, siang, malam):
         })
     return pd.DataFrame(data_tabel)
 
-# HEADER
+# HEADER: LOGO & JUDUL
 img_file = 'Macronutrients.png' 
 if os.path.exists(img_file):
     img_base64 = get_base64_of_bin_file(img_file)
@@ -81,6 +99,7 @@ if os.path.exists(img_file):
         </div>
         """, unsafe_allow_html=True)
 
+# TAGLINE
 st.markdown("""
     <div style="text-align: center; font-style: italic; font-size: 16px; margin-top: -10px; margin-bottom: 10px;">
         "Wujudkan gaya hidup sehat dengan panduan pola makan harian bergizi yang disesuaikan khusus untuk kebutuhan tubuhmu!"
@@ -89,7 +108,7 @@ st.markdown("""
 st.markdown("---")
 
 # ==========================================
-# 3. SIDEBAR & LOGIKA INPUT
+# 3. SIDEBAR & LOGIKA INPUT (SESSION STATE)
 # ==========================================
 if 'hasil_rekomendasi' not in st.session_state:
     st.session_state.hasil_rekomendasi = None
@@ -120,6 +139,7 @@ with st.sidebar:
             elif alergi != "Tidak Ada":
                 st.error("🛑 Sistem tidak memproses pengguna dengan alergi.")
             else:
+                # PERHITUNGAN
                 if gender == "Laki-laki": bmr = (10 * bb) + (6.25 * tb) - (5 * usia) + 5
                 else: bmr = (10 * bb) + (6.25 * tb) - (5 * usia) - 161
                 
@@ -127,9 +147,11 @@ with st.sidebar:
                 tdee = bmr * pal_map[aktivitas]
                 target_kalori = tdee
                 
+                # 🔥 INI KUNCINYA: PENERAPAN SAFETY THRESHOLD SINKRON DENGAN COLAB 🔥
                 if "Defisit" in goal and tdee > 1500: target_kalori -= 500
                 elif "Surplus" in goal and tdee < 2500: target_kalori += 500
                 
+                # SIMPAN KE STATE
                 st.session_state.hasil_rekomendasi = {
                     "nama": nama_input, "target_kalori": target_kalori,
                     "protein": (target_kalori * 0.2) / 4,
@@ -137,12 +159,17 @@ with st.sidebar:
                     "lemak": (target_kalori * 0.3) / 9, "goal": goal
                 }
                 
+                # AUTO-CLOSE SIDEBAR ANTI-MACET
                 t_stamp = str(time.time())
-                script_js = "<script>var v = window.parent.document.querySelector('button[kind=\"headerNoPadding\"]'); if (v) { v.click(); }</script>"
+                script_js = "<script>\n"
+                script_js += "var v = window.parent.document.querySelector('button[kind=\"headerNoPadding\"]');\n"
+                script_js += "if (v) { v.click(); }\n"
+                script_js += "// Waktu: " + t_stamp + "\n"
+                script_js += "</script>"
                 components.html(script_js, height=0)
 
 # ==========================================
-# 4. DISPLAY HASIL
+# 4. DISPLAY HASIL (OUTPUT UTAMA)
 # ==========================================
 if st.session_state.hasil_rekomendasi:
     res = st.session_state.hasil_rekomendasi
@@ -160,34 +187,49 @@ if st.session_state.hasil_rekomendasi:
         df_paket = pd.read_csv(file_paket, sep=';')
         df_paket.columns = df_paket.columns.str.strip()
         
-        # 🔥 FIX: CARA MEMANGGIL PICKLE YANG AMAN DI CLOUD
+        # ======================================================================
+        # 🔥 PROSES PERHITUNGAN MENGGUNAKAN PICKLE (STANDAR ML) 🔥
+        # ======================================================================
         fitur = ['Total Kalori', 'Total Protein', 'Total Karbohidrat', 'Total Lemak']
-        base_path = os.path.dirname(os.path.abspath(__file__))
-        pkl_path = os.path.join(base_path, 'scaler_gizi(1).pkl')
         
-        with open(pkl_path, 'rb') as file:
+        # Membuka kapsul memori dari Colab
+        with open('scaler_gizi.pkl', 'rb') as file:
             scaler = pickle.load(file)
         
+        # Hanya menggunakan transform() karena scaler sudah di-fit di Colab
         vektor_db = scaler.transform(df_paket[fitur])
         vektor_user = scaler.transform([[res['target_kalori'], res['protein'], res['karbo'], res['lemak']]])
         df_paket['Score'] = cosine_similarity(vektor_user, vektor_db)[0]
+        # ======================================================================
         
+        # TAHAP PRE-FILTERING DATASET BERDASARKAN GOAL USER
         if "Defisit" in res['goal']: df_h = df_paket[df_paket['Paket'].str.startswith('D')]
         elif "Surplus" in res['goal']: df_h = df_paket[df_paket['Paket'].str.startswith('S')]
         else: df_h = df_paket[df_paket['Paket'].str.startswith('M')]
         
+        # AMBIL REKOMENDASI UTAMA TERBAIK (ILOC 0)
         top = df_h.sort_values('Score', ascending=False).iloc[0]
         
+        # ======================================================================
+        # LOGIKA KLASIFIKASI RENTANG SKOR KEMIRIPAN (REVISI DOSPEM)
+        # ======================================================================
         score_val = top['Score']
-        if score_val >= 0.80: status = "🔥 High Recommendation"
-        elif score_val >= 0.60: status = "👍 Moderate Recommendation"
-        elif score_val >= 0.50: status = "⚠️ Low Recommendation"
-        else: status = "🛑 Not Recommended"
+        if score_val >= 0.80:
+            status_rekomendasi = "🔥 High Recommendation (Sangat Direkomendasikan)"
+        elif score_val >= 0.60:
+            status_rekomendasi = "👍 Moderate Recommendation (Cukup Direkomendasikan)"
+        elif score_val >= 0.50:
+            status_rekomendasi = "⚠️ Low Recommendation (Kurang Direkomendasikan)"
+        else:
+            status_rekomendasi = "🛑 Not Recommended (Tidak Direkomendasikan)"
 
+        # MENAMPILKAN ID PAKET & KATEGORI AKURASI
         st.success(f"🏆 Rekomendasi Utama: Paket {top['Id Paket']} - {top['Paket']}")
-        st.info(f"📊 **Akurasi:** {status} | 🎯 **Skor:** {score_val:.4f}")
+        st.info(f"📊 **Tingkat Akurasi Sistem:** {status_rekomendasi}  \n🎯 **Skor Kemiripan (Cosine Similarity):** {score_val:.4f}")
+        # ======================================================================
         
         st.write("### 🍱 Porsi Bahan Makanan")
+        # TABEL BERSIH TANPA ANGKA INDEKS DI KIRI
         df_final = format_menu_ke_tabel(top['Sarapan'], top['Makan Siang'], top['Makan Malam'])
         st.dataframe(df_final, use_container_width=True, hide_index=True)
         
