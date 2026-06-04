@@ -5,6 +5,7 @@ import os
 import re
 import base64
 import time
+import pickle  # <--- INI TAMBAHAN UNTUK MEMBACA FILE .PKL
 import streamlit.components.v1 as components
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics.pairwise import cosine_similarity
@@ -186,14 +187,20 @@ if st.session_state.hasil_rekomendasi:
         df_paket = pd.read_csv(file_paket, sep=';')
         df_paket.columns = df_paket.columns.str.strip()
         
-        # PROSES PERHITUNGAN COSINE SIMILARITY
-        scaler = MinMaxScaler()
+        # ======================================================================
+        # 🔥 PROSES PERHITUNGAN MENGGUNAKAN PICKLE (STANDAR ML) 🔥
+        # ======================================================================
         fitur = ['Total Kalori', 'Total Protein', 'Total Karbohidrat', 'Total Lemak']
         
-        # Penimbangan yang 100% Benar (Menggunakan Basis Paket)
-        vektor_db = scaler.fit_transform(df_paket[fitur])
+        # Membuka kapsul memori dari Colab
+        with open('scaler_gizi.pkl', 'rb') as file:
+            scaler = pickle.load(file)
+        
+        # Hanya menggunakan transform() karena scaler sudah di-fit di Colab
+        vektor_db = scaler.transform(df_paket[fitur])
         vektor_user = scaler.transform([[res['target_kalori'], res['protein'], res['karbo'], res['lemak']]])
         df_paket['Score'] = cosine_similarity(vektor_user, vektor_db)[0]
+        # ======================================================================
         
         # TAHAP PRE-FILTERING DATASET BERDASARKAN GOAL USER
         if "Defisit" in res['goal']: df_h = df_paket[df_paket['Paket'].str.startswith('D')]
