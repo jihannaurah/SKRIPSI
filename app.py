@@ -113,6 +113,10 @@ st.markdown("---")
 if 'hasil_rekomendasi' not in st.session_state:
     st.session_state.hasil_rekomendasi = None
 
+# 🔥 TAMBAHAN: Buat memori untuk nyimpen pesan error ke layar utama
+if 'pesan_error' not in st.session_state:
+    st.session_state.pesan_error = None
+
 with st.sidebar:
     st.header("📝 Form Data Diri")
     with st.form("form_pengguna"):
@@ -136,9 +140,13 @@ with st.sidebar:
         if submitted:
             if not (nama_input and bb and tb and usia):
                 st.warning("⚠️ Mohon lengkapi data diri Anda!")
-            elif alergi != "Tidak Ada":
-                st.error("🛑 Sistem tidak memproses pengguna dengan alergi.")
+            elif alergi != "Tidak Ada" or usia > 40:
+                # 🔥 UBAHAN: Simpan pesan errornya ke state, jangan langsung dimunculin di sidebar
+                st.session_state.pesan_error = "🛑 Sistem tidak memproses pengguna dengan alergi atau usia di atas 40 tahun."
+                st.session_state.hasil_rekomendasi = None
             else:
+                st.session_state.pesan_error = None  # Reset error kalau input sudah valid
+                
                 # PERHITUNGAN
                 if gender == "Laki-laki": bmr = (10 * bb) + (6.25 * tb) - (5 * usia) + 5
                 else: bmr = (10 * bb) + (6.25 * tb) - (5 * usia) - 161
@@ -171,7 +179,11 @@ with st.sidebar:
 # ==========================================
 # 4. DISPLAY HASIL (OUTPUT UTAMA)
 # ==========================================
-if st.session_state.hasil_rekomendasi:
+# 🔥 UBAHAN: Cek pesan error dulu, kalau ada munculin peringatan. Kalau tidak ada, lanjut tampilin hasil.
+if st.session_state.pesan_error:
+    st.error(st.session_state.pesan_error)
+
+elif st.session_state.hasil_rekomendasi:
     res = st.session_state.hasil_rekomendasi
     st.subheader(f"📊 Analisis Energi: {res['nama'].upper()}")
     c1, c2, c3, c4 = st.columns(4)
