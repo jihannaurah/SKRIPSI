@@ -102,3 +102,153 @@ if os.path.exists(img_file):
 # TAGLINE
 st.markdown("""
     <div style="text-align: center; font-style: italic; font-size: 16px; margin-top: -10px; margin-bottom: 10px;">
+        "Wujudkan gaya hidup sehat dengan panduan pola makan harian bergizi yang disesuaikan khusus untuk kebutuhan tubuhmu!"
+    </div>
+    """, unsafe_allow_html=True)
+st.markdown("---")
+
+# ==========================================
+# 3. SIDEBAR & LOGIKA INPUT (SESSION STATE)
+# ==========================================
+if 'hasil_rekomendasi' not in st.session_state:
+    st.session_state.hasil_rekomendasi = None
+
+# 🔥 TAMBAHAN: Buat memori untuk nyimpen pesan error ke layar utama
+if 'pesan_error' not in st.session_state:
+    st.session_state.pesan_error = None
+
+with st.sidebar:
+    st.header("📝 Form Data Diri")
+    with st.form("form_pengguna"):
+        nama_input = st.text_input("Nama Lengkap")
+        gender = st.selectbox("Jenis Kelamin", ["Laki-laki", "Perempuan"])
+        usia = st.number_input("Usia (Tahun)", min_value=1, value=None, placeholder="Input Usia...", step=1)
+        bb = st.number_input("Berat Badan (kg)", min_value=10, value=None, placeholder="Input BB...", step=1) 
+        tb = st.number_input("Tinggi Badan (cm)", min_value=50, value=None, placeholder="Input TB...", step=1)
+        
+        aktivitas = st.selectbox("Tingkat Aktivitas", [
+            "Sangat Ringan (Duduk bekerja/belajar, hampir tidak pernah olahraga)",
+            "Ringan (Aktivitas sehari-hari + Olahraga ringan 1-3 hari/minggu)",
+            "Sedang (Aktivitas cukup padat + Olahraga kardio/gym 3-5 hari/minggu)",
+            "Berat (Pekerjaan fisik/Olahraga berat 6-7 hari/minggu)",
+            "Sangat Berat (Atlet profesional atau pekerjaan fisik sangat berat setiap hari)"
+        ])
+        goal = st.selectbox("Tujuan Diet (Goal)", ["Defisit (Menurunkan Berat Badan)", "Maintenance (Menjaga Berat Badan)", "Surplus (Menambah Massa Otot)"])
+        alergi = st.selectbox("Riwayat Alergi Makanan", ["Tidak Ada", "Ada Alergi"])
+        submitted = st.form_submit_button("Cari Rekomendasi 🚀")
+
+        if submitted:
+            if not (nama_input and bb and tb and usia):
+                st.warning("⚠️ Mohon lengkapi data diri Anda!")
+            elif alergi != "Tidak Ada" or usia < 18 or usia > 40:
+                # 🔥 UBAHAN: Simpan pesan errornya ke state, jangan langsung dimunculin di sidebar
+                st.session_state.pesan_error = "🛑 Maaf, sistem ini hanya dirancang untuk rentang usia dewasa sehat (18-40 tahun) dan tanpa riwayat alergi."
+                st.session_state.hasil_rekomendasi = None
+            else:
+                st.session_state.pesan_error = None  # Reset error kalau input sudah valid
+                
+                # PERHITUNGAN
+                if gender == "Laki-laki": bmr = (10 * bb) + (6.25 * tb) - (5 * usia) + 5
+                else: bmr = (10 * bb) + (6.25 * tb) - (5 * usia) - 161
+                
+                pal_map = {"Sangat Ringan (Duduk bekerja/belajar, hampir tidak pernah olahraga)": 1.2, "Ringan (Aktivitas sehari-hari + Olahraga ringan 1-3 hari/minggu)": 1.375, "Sedang (Aktivitas cukup padat + Olahraga kardio/gym 3-5 hari/minggu)": 1.55, "Berat (Pekerjaan fisik/Olahraga berat 6-7 hari/minggu)": 1.725, "Sangat Berat (Atlet profesional atau pekerjaan fisik sangat berat setiap hari)": 1.9}
+                tdee = bmr * pal_map[aktivitas]
+                target_kalori = tdee
+                
+                # 🔥 INI KUNCINYA: PENERAPAN SAFETY THRESHOLD SINKRON DENGAN COLAB 🔥
+                if "Defisit" in goal and tdee > 1500: target_kalori -= 500
+                elif "Surplus" in goal and tdee < 2500: target_kalori += 500
+                
+                # SIMPAN KE STATE
+                st.session_state.hasil_rekomendasi = {
+                    "nama": nama_input, "target_kalori": target_kalori,
+                    "protein": (target_kalori * 0.2) / 4,
+                    "karbo": (target_kalori * 0.5) / 4,
+                    "lemak": (target_kalori * 0.3) / 9, "goal": goal
+                }
+                
+                # AUTO-CLOSE SIDEBAR ANTI-MACET
+                t_stamp = str(time.time())
+                script_js = "<script>\n"
+                script_js += "var v = window.parent.document.querySelector('button[kind=\"headerNoPadding\"]');\n"
+                script_js += "if (v) { v.click(); }\n"
+                script_js += "// Waktu: " + t_stamp + "\n"
+                script_js += "</script>"
+                components.html(script_js, height=0)
+
+# ==========================================
+# 4. DISPLAY HASIL (OUTPUT UTAMA)
+# ==========================================
+# 🔥 UBAHAN: Cek pesan error dulu, kalau ada munculin peringatan. Kalau tidak ada, lanjut tampilin hasil.
+if st.session_state.pesan_error:
+    st.error(st.session_state.pesan_error)
+
+elif st.session_state.hasil_rekomendasi:
+    res = st.session_state.hasil_rekomendasi
+    st.subheader(f"📊 Analisis Energi: {res['nama'].upper()}")
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Target Kalori", f"{res['target_kalori']:.1f} Kkal")
+    c2.metric("Protein", f"{res['protein']:.1f} g")
+    c3.metric("Karbohidrat", f"{res['karbo']:.1f} g")
+    c4.metric("Lemak", f"{res['lemak']:.1f} g")
+    
+    st.markdown("---")
+
+    file_paket = 'datasetpaketmenu.csv'
+    if os.path.exists(file_paket):
+        df_paket = pd.read_csv(file_paket, sep=';')
+        df_paket.columns = df_paket.columns.str.strip()
+        
+        # ======================================================================
+        # 🔥 PROSES PERHITUNGAN MENGGUNAKAN PICKLE (STANDAR ML) 🔥
+        # ======================================================================
+        fitur = ['Total Kalori', 'Total Protein', 'Total Karbohidrat', 'Total Lemak']
+        
+        # Membuka kapsul memori dari Colab
+        with open('scaler_gizi.pkl', 'rb') as file:
+            scaler = pickle.load(file)
+        
+        # Hanya menggunakan transform() karena scaler sudah di-fit di Colab
+        vektor_db = scaler.transform(df_paket[fitur])
+        vektor_user = scaler.transform([[res['target_kalori'], res['protein'], res['karbo'], res['lemak']]])
+        df_paket['Score'] = cosine_similarity(vektor_user, vektor_db)[0]
+        # ======================================================================
+        
+        # TAHAP PRE-FILTERING DATASET BERDASARKAN GOAL USER
+        if "Defisit" in res['goal']: df_h = df_paket[df_paket['Paket'].str.startswith('D')]
+        elif "Surplus" in res['goal']: df_h = df_paket[df_paket['Paket'].str.startswith('S')]
+        else: df_h = df_paket[df_paket['Paket'].str.startswith('M')]
+        
+        # AMBIL REKOMENDASI UTAMA TERBAIK (ILOC 0)
+        top = df_h.sort_values('Score', ascending=False).iloc[0]
+        
+        # ======================================================================
+        # LOGIKA KLASIFIKASI RENTANG SKOR KEMIRIPAN (REVISI DOSPEM)
+        # ======================================================================
+        score_val = top['Score']
+        if score_val >= 0.80:
+            status_rekomendasi = "🔥 High Recommendation (Sangat Direkomendasikan)"
+        elif score_val >= 0.60:
+            status_rekomendasi = "👍 Moderate Recommendation (Cukup Direkomendasikan)"
+        elif score_val >= 0.50:
+            status_rekomendasi = "⚠️ Low Recommendation (Kurang Direkomendasikan)"
+        else:
+            status_rekomendasi = "🛑 Not Recommended (Tidak Direkomendasikan)"
+
+        # MENAMPILKAN ID PAKET & KATEGORI AKURASI
+        st.success(f"🏆 Rekomendasi Utama: Paket {top['Id Paket']} - {top['Paket']}")
+        st.info(f"📊 **Tingkat Akurasi Sistem:** {status_rekomendasi}  \n🎯 **Skor Kemiripan (Cosine Similarity):** {score_val:.4f}")
+        # ======================================================================
+        
+        st.write("### 🍱 Porsi Bahan Makanan")
+        # TABEL BERSIH TANPA ANGKA INDEKS DI KIRI
+        df_final = format_menu_ke_tabel(top['Sarapan'], top['Makan Siang'], top['Makan Malam'])
+        st.dataframe(df_final, use_container_width=True, hide_index=True)
+        
+        st.write("### 👨‍🍳 Deskripsi & Cara Penyajian")
+        desc = str(top['Detail Makanan']).replace("Sarapan:", "<b>🌅 Sarapan:</b><br>").replace("Siang:", "<br><br><b>☀️ Makan Siang:</b><br>").replace("Malam:", "<br><br><b>🌙 Makan Malam:</b><br>")
+        st.markdown(f'<div class="desc-box">{desc}</div>', unsafe_allow_html=True)
+        
+        st.info(f"💡 Paket ini mengandung **{top['Total Kalori']} Kkal**. Selisih: **{abs(top['Total Kalori'] - res['target_kalori']):.1f} Kkal**.")
+else:
+    st.info("👈 Silakan lengkapi form di samping untuk melihat rekomendasi.")
