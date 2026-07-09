@@ -208,7 +208,7 @@ elif st.session_state.hasil_rekomendasi:
         with open('scaler_gizi.pkl', 'rb') as file:
             scaler = pickle.load(file)
         
-        # Hanya menggunakan transform() karena scaler sudah di-fit di Colab
+        # NORMALISASI = Hanya menggunakan transform() karena scaler sudah di-fit di Colab
         vektor_db = scaler.transform(df_paket[fitur])
         vektor_user = scaler.transform([[res['target_kalori'], res['protein'], res['karbo'], res['lemak']]])
         df_paket['Score'] = cosine_similarity(vektor_user, vektor_db)[0]
@@ -223,7 +223,7 @@ elif st.session_state.hasil_rekomendasi:
         top = df_h.sort_values('Score', ascending=False).iloc[0]
         
         # ======================================================================
-        # LOGIKA KLASIFIKASI RENTANG SKOR KEMIRIPAN (REVISI DOSPEM)
+        # LOGIKA KLASIFIKASI RENTANG SKOR KEMIRIPAN 
         # ======================================================================
         score_val = top['Score']
         if score_val >= 0.80:
