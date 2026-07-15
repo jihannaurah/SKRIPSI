@@ -65,13 +65,11 @@ st.markdown("""
     }
 
     /* 🔥 CSS KHUSUS: MELEBARKAN SIDEBAR TAPI TIDAK MERUSAK LAYOUT SAAT DITUTUP 🔥 */
-    /* Targetkan sidebar hanya saat dalam keadaan TERBUKA (expanded) */
     [data-testid="stSidebar"][aria-expanded="true"] {
         min-width: 480px !important;
         max-width: 480px !important;
     }
     
-    /* Memastikan transisi penutupan sidebar halus dan ruangnya hilang */
     [data-testid="stSidebar"][aria-expanded="false"] {
         min-width: 0px !important;
         max-width: 0px !important;
@@ -205,7 +203,6 @@ with st.sidebar:
     with st.form("form_pengguna"):
         nama_input = st.text_input("Nama Lengkap")
         
-        # PENGGUNAAN SELECTBOX DAN TEKS PANJANG (SESUAI PERMINTAAN DOSEN)
         gender = st.selectbox("Jenis Kelamin", ["Laki-laki", "Perempuan"])
         usia = st.number_input("Usia (Tahun)", min_value=1, value=None, placeholder="Input Usia...", step=1)
         bb = st.number_input("Berat Badan (kg)", min_value=10, value=None, placeholder="Input BB...", step=1) 
@@ -288,7 +285,7 @@ elif st.session_state.hasil_rekomendasi:
     c3.metric("Karbohidrat", f"{res['karbo']:.1f} g")
     c4.metric("Lemak", f"{res['lemak']:.1f} g")
     
-    # 🔥 GRAFIK PIE CHART PLOTLY
+    # 🔥 GRAFIK PIE CHART PLOTLY YANG SUDAH DIPERKECIL & DIRAPATKAN
     st.write("### 🍩 Visualisasi Proporsi Makronutrien")
     data_grafik = pd.DataFrame({
         'Nutrisi': ['Protein', 'Karbohidrat', 'Lemak'],
@@ -298,8 +295,22 @@ elif st.session_state.hasil_rekomendasi:
     fig = px.pie(data_grafik, values='Jumlah (Gram)', names='Nutrisi', hole=0.4, 
                  color_discrete_sequence=['#ff9999','#66b3ff','#99ff99'])
     
-    fig.update_layout(margin=dict(t=0, b=0, l=0, r=0)) 
-    st.plotly_chart(fig, use_container_width=True)
+    # Memperkecil tinggi dan menggeser tulisan warna mendekat ke donat
+    fig.update_layout(
+        height=350, 
+        margin=dict(t=10, b=10, l=10, r=10),
+        legend=dict(
+            yanchor="middle",
+            y=0.5,
+            xanchor="left",
+            x=0.85 # Menarik legenda mendekat ke kiri (ke arah donat)
+        )
+    )
+    
+    # Mengurung grafik ke dalam kolom tengah supaya tidak melar seukuran layar penuh
+    col_kiri, col_tengah, col_kanan = st.columns([1, 2, 1])
+    with col_tengah:
+        st.plotly_chart(fig, use_container_width=True)
     
     st.markdown("---")
 
