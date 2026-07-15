@@ -97,57 +97,72 @@ def format_menu_ke_tabel(sarapan, siang, malam):
         })
     return pd.DataFrame(data_tabel)
 
-# 🔥 TAMBAHAN REVISI: Fungsi Khusus untuk Cetak PDF
+# 🔥 TAMBAHAN REVISI: Fungsi Khusus untuk Cetak PDF (Kop Surat & TNR 12)
 def buat_laporan_pdf(res, top, df_final, score_val):
     pdf = FPDF()
     pdf.add_page()
     
-    # Judul Laporan
-    pdf.set_font("Arial", 'B', 16)
+    # 1. Judul Laporan (Font Times New Roman Bold 16)
+    pdf.set_font("Times", 'B', 16)
     pdf.cell(0, 10, txt="Laporan Rekomendasi Menu Harian Sehat", ln=True, align='C')
-    pdf.ln(5)
     
-    # Identitas Pengguna & Target Gizi
-    pdf.set_font("Arial", 'B', 12)
+    # 2. Garis Pembatas (Kop Surat)
+    y_pos = pdf.get_y() + 2 
+    pdf.set_line_width(0.8) 
+    pdf.line(10, y_pos, 200, y_pos)
+    pdf.set_line_width(0.2) 
+    pdf.line(10, y_pos + 1.5, 200, y_pos + 1.5)
+    
+    pdf.ln(10) 
+    
+    # 3. Identitas Pengguna & Target Gizi
+    pdf.set_font("Times", 'B', 12)
     pdf.cell(0, 10, txt="A. Target Kebutuhan Gizi", ln=True)
-    pdf.set_font("Arial", '', 11)
-    pdf.cell(0, 8, txt=f"Nama Pengguna : {res['nama']}", ln=True)
-    pdf.cell(0, 8, txt=f"Tujuan Diet   : {res['goal']}", ln=True)
-    pdf.cell(0, 8, txt=f"Target Kalori : {res['target_kalori']:.1f} Kkal", ln=True)
-    pdf.cell(0, 8, txt=f"Makronutrien  : Protein {res['protein']:.1f}g | Karbohidrat {res['karbo']:.1f}g | Lemak {res['lemak']:.1f}g", ln=True)
+    pdf.set_font("Times", '', 12) 
+    
+    # Variabel lebar kolom agar titik dua (:) sejajar rapi
+    col1 = 40 
+    col2 = 5  
+    col3 = 0  
+    t_baris = 8 
+    
+    pdf.cell(col1, t_baris, txt="Nama Pengguna"); pdf.cell(col2, t_baris, txt=":", align='C'); pdf.cell(col3, t_baris, txt=str(res['nama']), ln=True)
+    pdf.cell(col1, t_baris, txt="Tujuan Diet"); pdf.cell(col2, t_baris, txt=":", align='C'); pdf.cell(col3, t_baris, txt=str(res['goal']), ln=True)
+    pdf.cell(col1, t_baris, txt="Target Kalori"); pdf.cell(col2, t_baris, txt=":", align='C'); pdf.cell(col3, t_baris, txt=f"{res['target_kalori']:.1f} Kkal", ln=True)
+    pdf.cell(col1, t_baris, txt="Makronutrien"); pdf.cell(col2, t_baris, txt=":", align='C'); pdf.cell(col3, t_baris, txt=f"Protein {res['protein']:.1f}g | Karbohidrat {res['karbo']:.1f}g | Lemak {res['lemak']:.1f}g", ln=True)
     pdf.ln(5)
     
-    # Hasil Rekomendasi
-    pdf.set_font("Arial", 'B', 12)
+    # 4. Hasil Rekomendasi
+    pdf.set_font("Times", 'B', 12)
     pdf.cell(0, 10, txt="B. Hasil Rekomendasi Sistem", ln=True)
-    pdf.set_font("Arial", '', 11)
-    pdf.multi_cell(0, 8, txt=f"Rekomendasi Utama : Paket {top['Id Paket']} - {top['Paket']}")
-    pdf.multi_cell(0, 8, txt=f"Skor Cosine Sim.  : {score_val:.4f}")
-    pdf.multi_cell(0, 8, txt=f"Kalori Menu Ini   : {top['Total Kalori']} Kkal")
+    pdf.set_font("Times", '', 12)
+    
+    pdf.cell(col1, t_baris, txt="Rekomendasi Utama"); pdf.cell(col2, t_baris, txt=":", align='C'); pdf.cell(col3, t_baris, txt=f"Paket {top['Id Paket']} - {top['Paket']}", ln=True)
+    pdf.cell(col1, t_baris, txt="Skor Cosine Sim."); pdf.cell(col2, t_baris, txt=":", align='C'); pdf.cell(col3, t_baris, txt=f"{score_val:.4f}", ln=True)
+    pdf.cell(col1, t_baris, txt="Kalori Menu Ini"); pdf.cell(col2, t_baris, txt=":", align='C'); pdf.cell(col3, t_baris, txt=f"{top['Total Kalori']} Kkal", ln=True)
     pdf.ln(5)
     
-    # Tabel Menu (Dibuat sederhana agar rapi di PDF)
-    pdf.set_font("Arial", 'B', 11)
-    pdf.cell(40, 10, 'Waktu', border=1, align='C')
-    pdf.cell(100, 10, 'Bahan Makanan', border=1, align='C')
+    # 5. Tabel Menu (TNR 12)
+    pdf.set_font("Times", 'B', 12)
+    pdf.cell(35, 10, 'Waktu', border=1, align='C')
+    pdf.cell(105, 10, 'Bahan Makanan', border=1, align='C')
     pdf.cell(50, 10, 'Porsi', border=1, align='C')
     pdf.ln()
     
-    pdf.set_font("Arial", '', 10)
+    pdf.set_font("Times", '', 12)
     for _, row in df_final.iterrows():
-        # Menghapus emoji karena font bawaan PDF tidak mendukung emoji
         waktu_bersih = row['Waktu Makan'].replace('🌅 ', '').replace('☀️ ', '').replace('🌙 ', '')
-        bahan = str(row['Bahan Makanan'])[:50] # Dibatasi agar tidak keluar kotak tabel
+        bahan = str(row['Bahan Makanan'])[:50]
         porsi = str(row['Porsi (Gram)'])[:25]
         
-        pdf.cell(40, 10, waktu_bersih, border=1)
-        pdf.cell(100, 10, bahan, border=1)
+        pdf.cell(35, 10, waktu_bersih, border=1)
+        pdf.cell(105, 10, bahan, border=1)
         pdf.cell(50, 10, porsi, border=1)
         pdf.ln()
 
     # Catatan Bawah
     pdf.ln(10)
-    pdf.set_font("Arial", 'I', 9)
+    pdf.set_font("Times", 'I', 10)
     pdf.cell(0, 10, txt="*Laporan ini di-generate otomatis oleh Sistem Rekomendasi Diet Berbasis Content-Based Filtering.", ln=True, align='C')
     
     return pdf.output(dest="S").encode("latin-1")
@@ -183,20 +198,29 @@ with st.sidebar:
     st.header("📝 Form Data Diri")
     with st.form("form_pengguna"):
         nama_input = st.text_input("Nama Lengkap")
-        gender = st.selectbox("Jenis Kelamin", ["Laki-laki", "Perempuan"])
+        
+        # 🔥 TAMBAHAN REVISI: Mengubah Selectbox menjadi Radio Button (GForm style)
+        gender = st.radio("Jenis Kelamin", ["Laki-laki", "Perempuan"])
         usia = st.number_input("Usia (Tahun)", min_value=1, value=None, placeholder="Input Usia...", step=1)
         bb = st.number_input("Berat Badan (kg)", min_value=10, value=None, placeholder="Input BB...", step=1) 
         tb = st.number_input("Tinggi Badan (cm)", min_value=50, value=None, placeholder="Input TB...", step=1)
         
-        aktivitas = st.selectbox("Tingkat Aktivitas", [
+        aktivitas = st.radio("Tingkat Aktivitas", [
             "Sangat Ringan (Duduk bekerja/belajar, hampir tidak pernah olahraga)",
             "Ringan (Aktivitas sehari-hari + Olahraga ringan 1-3 hari/minggu)",
             "Sedang (Aktivitas cukup padat + Olahraga kardio/gym 3-5 hari/minggu)",
             "Berat (Pekerjaan fisik/Olahraga berat 6-7 hari/minggu)",
             "Sangat Berat (Atlet profesional atau pekerjaan fisik sangat berat setiap hari)"
         ])
-        goal = st.selectbox("Tujuan Diet (Goal)", ["Defisit (Menurunkan Berat Badan)", "Maintenance (Menjaga Berat Badan)", "Surplus (Menambah Massa Otot)"])
-        alergi = st.selectbox("Riwayat Alergi Makanan", ["Tidak Ada", "Ada Alergi"])
+        
+        goal = st.radio("Tujuan Diet (Goal)", [
+            "Defisit (Menurunkan Berat Badan)", 
+            "Maintenance (Menjaga Berat Badan)", 
+            "Surplus (Menambah Massa Otot)"
+        ])
+        
+        alergi = st.radio("Riwayat Alergi Makanan", ["Tidak Ada", "Ada Alergi"])
+        
         submitted = st.form_submit_button("Cari Rekomendasi 🚀")
 
         if submitted:
@@ -263,7 +287,7 @@ elif st.session_state.hasil_rekomendasi:
     fig = px.pie(data_grafik, values='Jumlah (Gram)', names='Nutrisi', hole=0.4, 
                  color_discrete_sequence=['#ff9999','#66b3ff','#99ff99'])
     
-    fig.update_layout(margin=dict(t=0, b=0, l=0, r=0)) # Menghilangkan space kosong berlebih
+    fig.update_layout(margin=dict(t=0, b=0, l=0, r=0)) 
     st.plotly_chart(fig, use_container_width=True)
     
     st.markdown("---")
