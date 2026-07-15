@@ -5,10 +5,14 @@ import os
 import re
 import base64
 import time
-import pickle  # <--- INI TAMBAHAN UNTUK MEMBACA FILE .PKL
+import pickle
 import streamlit.components.v1 as components
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics.pairwise import cosine_similarity
+
+# 🔥 TAMBAHAN REVISI: Import library untuk PDF dan Grafik
+import plotly.express as px
+from fpdf import FPDF
 
 # ==========================================
 # 1. KONFIGURASI TAMPILAN & CSS (ADAPTIVE & CLEAN)
@@ -43,7 +47,7 @@ st.markdown("""
         color: #00b4d8 !important; 
     }
 
-    /* KOTAK DESKRIPSI (TANPA WARNA TEKS STATIS AGAR AMAN DI MODE GELAP) */
+    /* KOTAK DESKRIPSI */
     .desc-box {
         background-color: rgba(0, 212, 255, 0.08); 
         border-left: 5px solid #00d4ff; 
@@ -56,9 +60,14 @@ st.markdown("""
         border: 1px solid rgba(0, 212, 255, 0.1);
     }
 
-    /* RESPONSIVE JUDUL */
     @media (max-width: 640px) {
         h1 { font-size: 20px !important; }
+    }
+
+    /* 🔥 TAMBAHAN REVISI: MELEBARKAN SIDEBAR AGAR TEKS TIDAK TERPOTONG */
+    [data-testid="stSidebar"] {
+        min-width: 480px !important;
+        max-width: 480px !important;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -88,6 +97,61 @@ def format_menu_ke_tabel(sarapan, siang, malam):
         })
     return pd.DataFrame(data_tabel)
 
+# 🔥 TAMBAHAN REVISI: Fungsi Khusus untuk Cetak PDF
+def buat_laporan_pdf(res, top, df_final, score_val):
+    pdf = FPDF()
+    pdf.add_page()
+    
+    # Judul Laporan
+    pdf.set_font("Arial", 'B', 16)
+    pdf.cell(0, 10, txt="Laporan Rekomendasi Menu Harian Sehat", ln=True, align='C')
+    pdf.ln(5)
+    
+    # Identitas Pengguna & Target Gizi
+    pdf.set_font("Arial", 'B', 12)
+    pdf.cell(0, 10, txt="A. Target Kebutuhan Gizi", ln=True)
+    pdf.set_font("Arial", '', 11)
+    pdf.cell(0, 8, txt=f"Nama Pengguna : {res['nama']}", ln=True)
+    pdf.cell(0, 8, txt=f"Tujuan Diet   : {res['goal']}", ln=True)
+    pdf.cell(0, 8, txt=f"Target Kalori : {res['target_kalori']:.1f} Kkal", ln=True)
+    pdf.cell(0, 8, txt=f"Makronutrien  : Protein {res['protein']:.1f}g | Karbohidrat {res['karbo']:.1f}g | Lemak {res['lemak']:.1f}g", ln=True)
+    pdf.ln(5)
+    
+    # Hasil Rekomendasi
+    pdf.set_font("Arial", 'B', 12)
+    pdf.cell(0, 10, txt="B. Hasil Rekomendasi Sistem", ln=True)
+    pdf.set_font("Arial", '', 11)
+    pdf.multi_cell(0, 8, txt=f"Rekomendasi Utama : Paket {top['Id Paket']} - {top['Paket']}")
+    pdf.multi_cell(0, 8, txt=f"Skor Cosine Sim.  : {score_val:.4f}")
+    pdf.multi_cell(0, 8, txt=f"Kalori Menu Ini   : {top['Total Kalori']} Kkal")
+    pdf.ln(5)
+    
+    # Tabel Menu (Dibuat sederhana agar rapi di PDF)
+    pdf.set_font("Arial", 'B', 11)
+    pdf.cell(40, 10, 'Waktu', border=1, align='C')
+    pdf.cell(100, 10, 'Bahan Makanan', border=1, align='C')
+    pdf.cell(50, 10, 'Porsi', border=1, align='C')
+    pdf.ln()
+    
+    pdf.set_font("Arial", '', 10)
+    for _, row in df_final.iterrows():
+        # Menghapus emoji karena font bawaan PDF tidak mendukung emoji
+        waktu_bersih = row['Waktu Makan'].replace('🌅 ', '').replace('☀️ ', '').replace('🌙 ', '')
+        bahan = str(row['Bahan Makanan'])[:50] # Dibatasi agar tidak keluar kotak tabel
+        porsi = str(row['Porsi (Gram)'])[:25]
+        
+        pdf.cell(40, 10, waktu_bersih, border=1)
+        pdf.cell(100, 10, bahan, border=1)
+        pdf.cell(50, 10, porsi, border=1)
+        pdf.ln()
+
+    # Catatan Bawah
+    pdf.ln(10)
+    pdf.set_font("Arial", 'I', 9)
+    pdf.cell(0, 10, txt="*Laporan ini di-generate otomatis oleh Sistem Rekomendasi Diet Berbasis Content-Based Filtering.", ln=True, align='C')
+    
+    return pdf.output(dest="S").encode("latin-1")
+
 # HEADER: LOGO & JUDUL
 img_file = 'Macronutrients.png' 
 if os.path.exists(img_file):
@@ -99,7 +163,6 @@ if os.path.exists(img_file):
         </div>
         """, unsafe_allow_html=True)
 
-# TAGLINE
 st.markdown("""
     <div style="text-align: center; font-style: italic; font-size: 16px; margin-top: -10px; margin-bottom: 10px;">
         "Wujudkan gaya hidup sehat dengan panduan pola makan harian bergizi yang disesuaikan khusus untuk kebutuhan tubuhmu!"
@@ -113,7 +176,6 @@ st.markdown("---")
 if 'hasil_rekomendasi' not in st.session_state:
     st.session_state.hasil_rekomendasi = None
 
-# 🔥 TAMBAHAN: Buat memori untuk nyimpen pesan error ke layar utama
 if 'pesan_error' not in st.session_state:
     st.session_state.pesan_error = None
 
@@ -141,13 +203,12 @@ with st.sidebar:
             if not (nama_input and bb and tb and usia):
                 st.warning("⚠️ Mohon lengkapi data diri Anda!")
             elif alergi != "Tidak Ada" or usia < 18 or usia > 40:
-                # 🔥 UBAHAN: Simpan pesan errornya ke state, jangan langsung dimunculin di sidebar
                 st.session_state.pesan_error = "🛑 Maaf, sistem ini hanya dirancang untuk rentang usia dewasa sehat (18-40 tahun) dan tanpa riwayat alergi."
                 st.session_state.hasil_rekomendasi = None
             else:
-                st.session_state.pesan_error = None  # Reset error kalau input sudah valid
+                st.session_state.pesan_error = None
                 
-                # PERHITUNGAN
+                # PERHITUNGAN TDEE
                 if gender == "Laki-laki": bmr = (10 * bb) + (6.25 * tb) - (5 * usia) + 5
                 else: bmr = (10 * bb) + (6.25 * tb) - (5 * usia) - 161
                 
@@ -155,7 +216,6 @@ with st.sidebar:
                 tdee = bmr * pal_map[aktivitas]
                 target_kalori = tdee
                 
-                # 🔥 INI KUNCINYA: PENERAPAN SAFETY THRESHOLD SINKRON DENGAN COLAB 🔥
                 if "Defisit" in goal and tdee > 1500: target_kalori -= 500
                 elif "Surplus" in goal and tdee < 2500: target_kalori += 500
                 
@@ -167,7 +227,6 @@ with st.sidebar:
                     "lemak": (target_kalori * 0.3) / 9, "goal": goal
                 }
                 
-                # AUTO-CLOSE SIDEBAR ANTI-MACET
                 t_stamp = str(time.time())
                 script_js = "<script>\n"
                 script_js += "var v = window.parent.document.querySelector('button[kind=\"headerNoPadding\"]');\n"
@@ -179,18 +238,33 @@ with st.sidebar:
 # ==========================================
 # 4. DISPLAY HASIL (OUTPUT UTAMA)
 # ==========================================
-# 🔥 UBAHAN: Cek pesan error dulu, kalau ada munculin peringatan. Kalau tidak ada, lanjut tampilin hasil.
 if st.session_state.pesan_error:
     st.error(st.session_state.pesan_error)
 
 elif st.session_state.hasil_rekomendasi:
     res = st.session_state.hasil_rekomendasi
     st.subheader(f"📊 Analisis Energi: {res['nama'].upper()}")
+    
+    # 4 Kolom Metrik
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Target Kalori", f"{res['target_kalori']:.1f} Kkal")
     c2.metric("Protein", f"{res['protein']:.1f} g")
     c3.metric("Karbohidrat", f"{res['karbo']:.1f} g")
     c4.metric("Lemak", f"{res['lemak']:.1f} g")
+    
+    # 🔥 TAMBAHAN REVISI: Grafik Pie Chart Plotly di bawah metrik
+    st.write("### 🍩 Visualisasi Proporsi Makronutrien")
+    data_grafik = pd.DataFrame({
+        'Nutrisi': ['Protein', 'Karbohidrat', 'Lemak'],
+        'Jumlah (Gram)': [res['protein'], res['karbo'], res['lemak']]
+    })
+    
+    # Membuat efek Donut Chart agar lebih modern
+    fig = px.pie(data_grafik, values='Jumlah (Gram)', names='Nutrisi', hole=0.4, 
+                 color_discrete_sequence=['#ff9999','#66b3ff','#99ff99'])
+    
+    fig.update_layout(margin=dict(t=0, b=0, l=0, r=0)) # Menghilangkan space kosong berlebih
+    st.plotly_chart(fig, use_container_width=True)
     
     st.markdown("---")
 
@@ -199,33 +273,25 @@ elif st.session_state.hasil_rekomendasi:
         df_paket = pd.read_csv(file_paket, sep=';')
         df_paket.columns = df_paket.columns.str.strip()
         
-        # ======================================================================
-        # 🔥 PROSES PERHITUNGAN MENGGUNAKAN PICKLE (STANDAR ML) 🔥
-        # ======================================================================
+        # PROSES MACHINE LEARNING
         fitur = ['Total Kalori', 'Total Protein', 'Total Karbohidrat', 'Total Lemak']
         
-        # Membuka kapsul memori dari Colab
         with open('scaler_gizi.pkl', 'rb') as file:
             scaler = pickle.load(file)
         
-        # NORMALISASI = Hanya menggunakan transform() karena scaler sudah di-fit di Colab
         vektor_db = scaler.transform(df_paket[fitur])
         vektor_user = scaler.transform([[res['target_kalori'], res['protein'], res['karbo'], res['lemak']]])
         df_paket['Score'] = cosine_similarity(vektor_user, vektor_db)[0]
-        # ======================================================================
         
-        # TAHAP PRE-FILTERING DATASET BERDASARKAN GOAL USER
+        # PRE-FILTERING
         if "Defisit" in res['goal']: df_h = df_paket[df_paket['Paket'].str.startswith('D')]
         elif "Surplus" in res['goal']: df_h = df_paket[df_paket['Paket'].str.startswith('S')]
         else: df_h = df_paket[df_paket['Paket'].str.startswith('M')]
         
-        # AMBIL REKOMENDASI UTAMA TERBAIK (ILOC 0)
+        # AMBIL REKOMENDASI TERBAIK
         top = df_h.sort_values('Score', ascending=False).iloc[0]
-        
-        # ======================================================================
-        # LOGIKA KLASIFIKASI RENTANG SKOR KEMIRIPAN 
-        # ======================================================================
         score_val = top['Score']
+        
         if score_val >= 0.80:
             status_rekomendasi = "🔥 High Recommendation (Sangat Direkomendasikan)"
         elif score_val >= 0.60:
@@ -235,13 +301,11 @@ elif st.session_state.hasil_rekomendasi:
         else:
             status_rekomendasi = "🛑 Not Recommended (Tidak Direkomendasikan)"
 
-        # MENAMPILKAN ID PAKET & KATEGORI AKURASI
+        # TAMPILKAN HASIL PAKET MENU
         st.success(f"🏆 Rekomendasi Utama: Paket {top['Id Paket']} - {top['Paket']}")
         st.info(f"📊 **Tingkat Akurasi Sistem:** {status_rekomendasi}  \n🎯 **Skor Kemiripan (Cosine Similarity):** {score_val:.4f}")
-        # ======================================================================
         
         st.write("### 🍱 Porsi Bahan Makanan")
-        # TABEL BERSIH TANPA ANGKA INDEKS DI KIRI
         df_final = format_menu_ke_tabel(top['Sarapan'], top['Makan Siang'], top['Makan Malam'])
         st.dataframe(df_final, use_container_width=True, hide_index=True)
         
@@ -250,5 +314,22 @@ elif st.session_state.hasil_rekomendasi:
         st.markdown(f'<div class="desc-box">{desc}</div>', unsafe_allow_html=True)
         
         st.info(f"💡 Paket ini mengandung **{top['Total Kalori']} Kkal**. Selisih: **{abs(top['Total Kalori'] - res['target_kalori']):.1f} Kkal**.")
+
+        # 🔥 TAMBAHAN REVISI: Tombol Cetak PDF di Paling Bawah
+        st.markdown("---")
+        st.write("### 🖨️ Cetak Laporan Kesehatan")
+        st.write("Simpan hasil perhitungan kalori dan rekomendasi menu Anda dalam format PDF.")
+        
+        # Panggil fungsi pembuat PDF
+        pdf_bytes = buat_laporan_pdf(res, top, df_final, score_val)
+        
+        # Tombol Download Bawaan Streamlit
+        nama_file = f"Laporan_Diet_{res['nama'].replace(' ', '_')}.pdf"
+        st.download_button(
+            label="📄 Unduh Laporan (PDF)",
+            data=pdf_bytes,
+            file_name=nama_file,
+            mime="application/pdf"
+        )
 else:
     st.info("👈 Silakan lengkapi form di samping untuk melihat rekomendasi.")
