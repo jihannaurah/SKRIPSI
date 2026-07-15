@@ -64,10 +64,17 @@ st.markdown("""
         h1 { font-size: 20px !important; }
     }
 
-    /* 🔥 TAMBAHAN REVISI: MELEBARKAN SIDEBAR AGAR TEKS TIDAK TERPOTONG */
-    [data-testid="stSidebar"] {
+    /* 🔥 CSS KHUSUS: MELEBARKAN SIDEBAR TAPI TIDAK MERUSAK LAYOUT SAAT DITUTUP 🔥 */
+    /* Targetkan sidebar hanya saat dalam keadaan TERBUKA (expanded) */
+    [data-testid="stSidebar"][aria-expanded="true"] {
         min-width: 480px !important;
         max-width: 480px !important;
+    }
+    
+    /* Memastikan transisi penutupan sidebar halus dan ruangnya hilang */
+    [data-testid="stSidebar"][aria-expanded="false"] {
+        min-width: 0px !important;
+        max-width: 0px !important;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -120,7 +127,6 @@ def buat_laporan_pdf(res, top, df_final, score_val):
     pdf.cell(0, 10, txt="A. Target Kebutuhan Gizi", ln=True)
     pdf.set_font("Times", '', 12) 
     
-    # Variabel lebar kolom agar titik dua (:) sejajar rapi
     col1 = 40 
     col2 = 5  
     col3 = 0  
@@ -199,13 +205,13 @@ with st.sidebar:
     with st.form("form_pengguna"):
         nama_input = st.text_input("Nama Lengkap")
         
-        # 🔥 TAMBAHAN REVISI: Mengubah Selectbox menjadi Radio Button (GForm style)
-        gender = st.radio("Jenis Kelamin", ["Laki-laki", "Perempuan"])
+        # PENGGUNAAN SELECTBOX DAN TEKS PANJANG (SESUAI PERMINTAAN DOSEN)
+        gender = st.selectbox("Jenis Kelamin", ["Laki-laki", "Perempuan"])
         usia = st.number_input("Usia (Tahun)", min_value=1, value=None, placeholder="Input Usia...", step=1)
         bb = st.number_input("Berat Badan (kg)", min_value=10, value=None, placeholder="Input BB...", step=1) 
         tb = st.number_input("Tinggi Badan (cm)", min_value=50, value=None, placeholder="Input TB...", step=1)
         
-        aktivitas = st.radio("Tingkat Aktivitas", [
+        aktivitas = st.selectbox("Tingkat Aktivitas", [
             "Sangat Ringan (Duduk bekerja/belajar, hampir tidak pernah olahraga)",
             "Ringan (Aktivitas sehari-hari + Olahraga ringan 1-3 hari/minggu)",
             "Sedang (Aktivitas cukup padat + Olahraga kardio/gym 3-5 hari/minggu)",
@@ -213,13 +219,13 @@ with st.sidebar:
             "Sangat Berat (Atlet profesional atau pekerjaan fisik sangat berat setiap hari)"
         ])
         
-        goal = st.radio("Tujuan Diet (Goal)", [
+        goal = st.selectbox("Tujuan Diet (Goal)", [
             "Defisit (Menurunkan Berat Badan)", 
             "Maintenance (Menjaga Berat Badan)", 
             "Surplus (Menambah Massa Otot)"
         ])
         
-        alergi = st.radio("Riwayat Alergi Makanan", ["Tidak Ada", "Ada Alergi"])
+        alergi = st.selectbox("Riwayat Alergi Makanan", ["Tidak Ada", "Ada Alergi"])
         
         submitted = st.form_submit_button("Cari Rekomendasi 🚀")
 
@@ -236,7 +242,13 @@ with st.sidebar:
                 if gender == "Laki-laki": bmr = (10 * bb) + (6.25 * tb) - (5 * usia) + 5
                 else: bmr = (10 * bb) + (6.25 * tb) - (5 * usia) - 161
                 
-                pal_map = {"Sangat Ringan (Duduk bekerja/belajar, hampir tidak pernah olahraga)": 1.2, "Ringan (Aktivitas sehari-hari + Olahraga ringan 1-3 hari/minggu)": 1.375, "Sedang (Aktivitas cukup padat + Olahraga kardio/gym 3-5 hari/minggu)": 1.55, "Berat (Pekerjaan fisik/Olahraga berat 6-7 hari/minggu)": 1.725, "Sangat Berat (Atlet profesional atau pekerjaan fisik sangat berat setiap hari)": 1.9}
+                pal_map = {
+                    "Sangat Ringan (Duduk bekerja/belajar, hampir tidak pernah olahraga)": 1.2, 
+                    "Ringan (Aktivitas sehari-hari + Olahraga ringan 1-3 hari/minggu)": 1.375, 
+                    "Sedang (Aktivitas cukup padat + Olahraga kardio/gym 3-5 hari/minggu)": 1.55, 
+                    "Berat (Pekerjaan fisik/Olahraga berat 6-7 hari/minggu)": 1.725, 
+                    "Sangat Berat (Atlet profesional atau pekerjaan fisik sangat berat setiap hari)": 1.9
+                }
                 tdee = bmr * pal_map[aktivitas]
                 target_kalori = tdee
                 
@@ -276,14 +288,13 @@ elif st.session_state.hasil_rekomendasi:
     c3.metric("Karbohidrat", f"{res['karbo']:.1f} g")
     c4.metric("Lemak", f"{res['lemak']:.1f} g")
     
-    # 🔥 TAMBAHAN REVISI: Grafik Pie Chart Plotly di bawah metrik
+    # 🔥 GRAFIK PIE CHART PLOTLY
     st.write("### 🍩 Visualisasi Proporsi Makronutrien")
     data_grafik = pd.DataFrame({
         'Nutrisi': ['Protein', 'Karbohidrat', 'Lemak'],
         'Jumlah (Gram)': [res['protein'], res['karbo'], res['lemak']]
     })
     
-    # Membuat efek Donut Chart agar lebih modern
     fig = px.pie(data_grafik, values='Jumlah (Gram)', names='Nutrisi', hole=0.4, 
                  color_discrete_sequence=['#ff9999','#66b3ff','#99ff99'])
     
@@ -339,7 +350,7 @@ elif st.session_state.hasil_rekomendasi:
         
         st.info(f"💡 Paket ini mengandung **{top['Total Kalori']} Kkal**. Selisih: **{abs(top['Total Kalori'] - res['target_kalori']):.1f} Kkal**.")
 
-        # 🔥 TAMBAHAN REVISI: Tombol Cetak PDF di Paling Bawah
+        # 🔥 TOMBOL CETAK PDF (DENGAN KOP SURAT)
         st.markdown("---")
         st.write("### 🖨️ Cetak Laporan Kesehatan")
         st.write("Simpan hasil perhitungan kalori dan rekomendasi menu Anda dalam format PDF.")
