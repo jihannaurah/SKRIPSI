@@ -328,7 +328,7 @@ elif st.session_state.hasil_rekomendasi:
         vektor_db = scaler.transform(df_paket[fitur])
         vektor_user_raw = scaler.transform([[res['target_kalori'], res['protein'], res['karbo'], res['lemak']]])
         vektor_user = np.clip(vektor_user_raw, 0.0, 1.0)
-        df_paket['Score'] = cosine_similarity(vektor_user, vektor_db)
+        df_paket['Score'] = cosine_similarity(vektor_user, vektor_db)[0]
         
         # PRE-FILTERING
         if "Defisit" in res['goal']: df_h = df_paket[df_paket['Paket'].str.startswith('D')]
